@@ -6,11 +6,21 @@
 # 环境（由 Actions Secrets 注入）：
 #   AGNES_API_KEY      解说词 api 引擎必需；缺失则自动回退 local 引擎
 #   EULERPOOL_API_KEY  可选；不设在云端直接跳过（无代理、且被 Cloudflare 拦）
-# 可调环境变量：COLLECT_CN(auto|1|0) / ENGINE(api|local) / PRESET(agnes) / TIER(calm) / IV(300)
+# 可调环境变量：COLLECT_CN(auto|1|0) / ENGINE(api|local) / PRESET(agnes) / TIER(calm) / IV(300) / TZ
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE" || exit 1
 PY="${PYTHON:-python3}"
+
+# ---- 时区铁律（CI 必设，V1.9.39）--------------------------------------------
+# CI runner 默认 TZ=UTC，而管线里凡是**裸时间**都按进程本地时区走：
+#   · markets.market_state() 的 `now = now or dt.datetime.now()` → 判当前场次
+#   · narrate / collect / build 里 time.strftime、time.localtime 生成的时间戳
+#   · narrate 的 cn_fresh 日期比较、collect_live --date 默认交易日
+# 本地 macOS 是 CST 所以一直正确，CI 上会整体错位 8 小时——
+# 实测 2026-10-09：北京 17:12 → runner UTC 09:12 → 被判成 A股「盘前」(盘前段 480-570 分)，
+# 页面/解说时间戳也全显示 09:12。这里显式对齐北京时间，行为与本地 100% 一致。
+export TZ="${TZ:-Asia/Shanghai}"
 
 ENGINE="${ENGINE:-api}"
 PRESET="${PRESET:-agnes}"
@@ -20,9 +30,10 @@ IV="${IV:-300}"
 
 mkdir -p "$HERE/_site" "$HERE/logs" "$HERE/data"
 LOG="$HERE/logs/ci_run.log"
+SUMMARY="$(mktemp -t live_summary 2>/dev/null || echo "$HERE/logs/.summary.md")"
 
 {
-  echo "=== CI 单次管线启动 $(date -u '+%F %T UTC') 引擎=$ENGINE 采A股=$COLLECT_CN ==="
+  echo "=== CI 单次管线启动 $(date '+%F %T %Z(%z)') 引擎=$ENGINE 采A股=$COLLECT_CN ==="
 
   # ---- config.json：CI 无此文件（已 gitignore，避免密钥入仓）→ 由 example + Secret 现场生成 ----
   # narrate.py --preset 需从 config.json 读 base/model；key 优先走 key_env(AGNES_API_KEY) 环境变量。
@@ -114,5 +125,68 @@ except Exception:
 </head><body style="font-family:-apple-system,system-ui,'PingFang SC',sans-serif;text-align:center;padding-top:22vh;color:#232220">
 <p>页面刷新中，正在跳转到 <a href="/live.html" style="color:#8A6A33">股市直播</a>…</p></body></html>
 HTML
+
+  # ---- 自检摘要（同步到 Actions 运行页，免受"翻全量日志"之苦）----
+  "$PY" - <<'PY' > "$SUMMARY" 2>/dev/null || true
+import glob, json, os, time
+
+
+def j(p, d=None):
+    try:
+        return json.load(open(p, encoding="utf-8"))
+    except Exception:
+        return d
+
+
+print("## 股市直播 · 本轮自检")
+print()
+print("| 项 | 值 |")
+print("|---|---|")
+print("| 运行时间 | %s |" % time.strftime("%Y-%m-%d %H:%M:%S %Z"))
+
+s = j("data/snapshot.json", {}) or {}
+sess = s.get("session") or {}
+act = sess.get("active_names") or sess.get("active") or sess.get("active_name") or "-"
+if isinstance(act, (list, tuple)):
+    act = "/".join(str(x) for x in act)
+print("| 当前场次 | %s |" % act)
+print("| 场次检查于 | %s |" % (sess.get("checked_at") or "-"))
+
+nw = s.get("news")
+if isinstance(nw, dict):
+    nw = nw.get("items") or nw.get("list") or nw.get("all") or []
+print("| 快讯池 | %s 条 |" % (len(nw) if isinstance(nw, list) else "-"))
+
+cn = ((sess.get("all") or {}).get("cn") or {})
+print("| A股 traded_today | %s |" % (cn.get("traded_today")))
+
+for p in sorted(glob.glob("data/commentary_*.json") + glob.glob("commentary_*.json")):
+    d = j(p) or {}
+    n = "-"
+    for k in ("segments", "segs", "items", "lines"):
+        v = d.get(k)
+        if isinstance(v, list):
+            n = len(v)
+            break
+    print("| 解说 %s | %s 段 |" % (os.path.basename(p), n))
+
+rrg = j("data/rrg_state.json", {}) or {}
+if rrg:
+    print("| RRG | %s |" % (rrg.get("fetched_at") or "-"))
+
+try:
+    print("| live.html | %d bytes |" % os.path.getsize("_site/live.html"))
+except Exception:
+    pass
+PY
+  echo "--- 自检摘要 ---"
+  sed 's/^/    /' "$SUMMARY" 2>/dev/null
   echo "--- 一轮完成，产物 $(wc -c < _site/live.html) bytes ---"
 } >>"$LOG" 2>&1
+
+# 摘要同步到 Actions 运行页（非致命：失败不影响部署）
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -s "$SUMMARY" ]; then
+  cat "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+fi
+rm -f "$SUMMARY"
+exit 0

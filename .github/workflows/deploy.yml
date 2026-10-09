@@ -20,6 +20,10 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # CI runner 默认 TZ=UTC → 全管线（场次判定 / 时间戳 / 交易日）会错位 8 小时，必须对齐北京时间。
+      # 详见 ci_run_once.sh 顶部「时区铁律」(V1.9.39)。
+      TZ: Asia/Shanghai
     steps:
       - name: Checkout
         uses: actions/checkout@v4

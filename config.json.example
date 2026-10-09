@@ -1,6 +1,6 @@
 {
   "name": "股市直播",
-  "version": "1.9.38",
+  "version": "1.9.39",
   "stage": "一期 · 本地验证版（三市场 · AI 现场解说 · 真实数据 · 快讯24h滚动）",
   "entry": "live.html",
   "personas": [
