@@ -1,4 +1,4 @@
-# 部署方案 · Cloudflare 可行性评估（目标版本 v1.9.39）
+# 部署方案 · Cloudflare 可行性评估（目标版本 v1.9.40）
 
 > 结论先行：**CF Pages 托管 `live.html` 完全可行且是已验证范式；但「每 300s 刷新管线」无法在 CF Pages 上跑，必须配一个外部算力（免费云服务）跑 Python 管线再推 Pages。** 纯 CF 单栈不成立，推荐「CF Pages 静态 + 外部免费算力跑管线」混合架构。
 
@@ -155,3 +155,36 @@ GitHub Actions cron（每 5min）
 - 结论：**B 方案适合验证链路，不适合长期承载**。长期二选一：**① 仓库转 public**（无限免费，代价＝源码公开）或 **② 换常驻算力**（§4 的 Oracle Free Tier，真免费无限、行为与本地一致）。Actions 可保留作兜底通道。
 
 **入口问题**：`*.pages.dev` 在中国大陆直连不稳（实测连接超时）。对外最终入口应经既有 `site-router`（`纽扣岛/site-router/`）挂 `yangxiaa.cc/live*` → `wolong-live.pages.dev`（ROUTES 表加一行 + zone 级路由，需 CF 凭证，尚未执行）。
+
+### 7.7 时区问题根治 + 转 public（2026-10-09 · v1.9.40）
+
+**为什么 §7.6 的 V1.9.39 修法不够**：它只在 `ci_run_once.sh` 里 `export TZ=Asia/Shanghai`，属**外挂补丁** —— 依赖每个调用方自觉设置，换入口（本地跑 / 别的 CI / 新算力机）就再次踩坑。第一次上线后线上仍显示 A股 盘前，就是因为那轮 run 跑的是补丁前的代码。
+
+**根治（V1.9.40）**：新增 `cn_tz.py`，`import` 即执行 `os.environ["TZ"]="Asia/Shanghai"` + `time.tzset()`，把**进程时区强制锚定**，与操作系统彻底解耦。5 个含裸时间的脚本各加一行 `import cn_tz`：
+
+| 脚本 | 裸时间点 |
+|---|---|
+| `markets.py` | `market_state()` 的 `now = now or dt.datetime.now()` → 当前场次判定 |
+| `narrate.py` | `dt.datetime.now()` 时间戳、`cn_fresh` 日期比较 |
+| `collect_live.py` | `generated_at` 时间戳、`--date` 默认交易日 |
+| `build_live.py` | `today`、`time.localtime()` 时间戳 |
+| `collect_rrg.py` | `fetched_at` 时间戳 |
+
+CI 侧 `export TZ` 保留作双保险（两道防线）。
+
+**验证证据（决定性）**：`git archive HEAD` 导出与 CI 检出完全一致的干净副本，**故意强制 `TZ=UTC`**（模拟 runner 默认）跑一轮：
+
+| 组 | 结果 |
+|---|---|
+| 对照（旧代码，裸时间） | `09:35:35 UTC` ← 即误判 A股「盘前」的来源 |
+| 实验（新代码，`import cn_tz`） | `17:35:35 CST` ✓ |
+| 端到端（强制 UTC 跑全链路） | 自检摘要「**当前场次 = 美股** / 场次检查于 **17:39**」、exit 0、产物 93 KB ✓ |
+
+**转 public（解 Actions 成本限制，需师傅网页操作，约 20 秒）**：
+1. 打开 `https://github.com/yangxia028/wolong-live/settings`
+2. 滚到最底 **Danger Zone** → **Change repository visibility** → **Make public**
+3. 按提示输入仓库名确认
+
+转 public 后：Actions **无限免费**（私有仓 2,000 分钟/月 的限制解除）→ 5 分钟一轮可持续承载。密钥安全性不变（`config.json` 从未入库，走 Secrets + `.gitignore`；`ci_run_once.sh` 经检查不回显任何密钥）。
+
+> 运维铁律（本次踩到）：**代码修复推送后必须云端重跑一次才生效** —— 线上页面是上一轮的产物，看旧页面不等于修复失败。核验线上时优先看 `$GITHUB_STEP_SUMMARY` 里的自检摘要（含运行时间与当前场次），比读页面文字更快。
