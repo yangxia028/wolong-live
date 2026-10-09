@@ -6,6 +6,8 @@ on:
   schedule:
     - cron: '*/5 * * * *'        # 每 5 分钟
   workflow_dispatch: {}          # 允许手动触发试跑
+  push:
+    branches: [main]            # 推 main 即部署：cron 失效时的兜底，避免线上冻死
 
 permissions:
   contents: read
