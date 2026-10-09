@@ -128,6 +128,13 @@ except Exception:
 <p>页面刷新中，正在跳转到 <a href="/live.html" style="color:#8A6A33">股市直播</a>…</p></body></html>
 HTML
 
+  # ---- 防缓存：直播页是实时内容，强制浏览器每次校验最新 ----
+  # 避免「部署了新内容但用户/CDN 还显示旧版」的困扰（V1.9.40 后追加）。
+  cat > _site/_headers <<'HDR'
+/*
+  Cache-Control: no-cache
+HDR
+
   # ---- 自检摘要（同步到 Actions 运行页，免受"翻全量日志"之苦）----
   "$PY" - <<'PY' > "$SUMMARY" 2>/dev/null || true
 import glob, json, os, time
