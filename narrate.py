@@ -2603,12 +2603,44 @@ def _fix_relative_dates(segs, F):
     return segs
 
 
+def _split_long_block(text, lo=6, hi=10):
+    """模型偶发把 6~10 段挤成「一段无换行」的长块（temp=0.9 非确定性）。
+    兜底：按句末标点 / 逗号切成 6~10 段，保证解说台不会被压成一段。
+    仅在 _parse_llm 判定段数 < lo 时调用；若文本本身极短、切不出 lo 段，
+    则返回能切出的最多段数（仍优于「整段 1 段」）。"""
+    if not text or not text.strip():
+        return []
+    sents = [s.strip() for s in re.split(r"(?<=[。！？!?；;\n])", text) if s.strip()]
+    if len(sents) < lo:
+        pieces = []
+        for s in sents:
+            parts = [p.strip() for p in re.split(r"(?<=[，,])", s) if p.strip()]
+            pieces.extend(parts)
+        sents = pieces
+    if not sents:
+        return [text.strip()]
+    n = len(sents)
+    if n <= hi:
+        return sents[:hi]
+    per = max(1, n // hi)            # 太多 → 合并到 hi 段（每段尽量等长）
+    out = []
+    for i in range(0, n, per):
+        out.append("".join(sents[i:i + per]))
+    return out[:hi]
+
+
 def _parse_llm(txt):
     """把 LLM 段落切成 {t,text,tag}。用段数均分时间轴。
     （api 引擎不出 refs → 页面自动不渲染标签行，不报错。）"""
     paras = [x.strip() for x in re.split(r"\n\s*\n", txt.strip()) if x.strip()]
     if len(paras) == 1:
         paras = [x.strip() for x in re.split(r"\n", txt.strip()) if x.strip()]
+    # V1.9.41：兜底——模型偶发把 6~10 段挤成一段（无换行），_parse_llm 会退化成 1 段；
+    #   重试 3 次仍可能全中 1 段（temp=0.9 非确定性）。确定性兜底：按句/逗号切回 6~10 段。
+    if len(paras) < 6:
+        _sp = _split_long_block(txt, 6, 10)
+        if len(_sp) >= 6:
+            paras = _sp
     n = len(paras)
     step = 6 if n > 6 else 8
     out = []
