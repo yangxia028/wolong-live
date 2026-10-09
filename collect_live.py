@@ -26,6 +26,9 @@ import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import cn_tz  # noqa: E402,F401  —— 锚定进程时区为北京时间（V1.9.40 时区铁律）
+
 sys.stdout.reconfigure(line_buffering=True)
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "

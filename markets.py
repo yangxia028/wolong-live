@@ -25,6 +25,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import cn_tz  # noqa: E402,F401  —— 锚定进程时区为北京时间（V1.9.40 时区铁律）
 from collect_live import http, SINA_REF, _log, _f# noqa: E402
 
 # Nasdaq 官方 API 对默认 UA 会 403，必须带浏览器 UA（2026-10-06 实测）

@@ -20,6 +20,9 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import cn_tz  # noqa: E402,F401  —— 锚定进程时区为北京时间（V1.9.40 时区铁律）
+
 sys.stdout.reconfigure(line_buffering=True)
 
 
@@ -48,7 +51,7 @@ def _clean_commentary_text(c):
     return c
 
 
-VERSION = "1.9.39"
+VERSION = "1.9.40"
 
 
 def load_json(p, default=None):

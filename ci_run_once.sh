@@ -12,7 +12,9 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE" || exit 1
 PY="${PYTHON:-python3}"
 
-# ---- 时区铁律（CI 必设，V1.9.39）--------------------------------------------
+# ---- 时区铁律（V1.9.39 CI 侧兜底；V1.9.40 起代码内 cn_tz 已进程级锚定）------
+#   V1.9.40 起：各脚本 import cn_tz 即强制进程时区 = Asia/Shanghai，
+#   不再依赖本行环境变量；此处仅作双保险。详见 cn_tz.py 头部注释。
 # CI runner 默认 TZ=UTC，而管线里凡是**裸时间**都按进程本地时区走：
 #   · markets.market_state() 的 `now = now or dt.datetime.now()` → 判当前场次
 #   · narrate / collect / build 里 time.strftime、time.localtime 生成的时间戳
