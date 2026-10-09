@@ -4,7 +4,7 @@
 # 由 .github/workflows/deploy.yml 每 5 分钟调用一次；状态经 actions/cache 跨轮持久化。
 #
 # 环境（由 Actions Secrets 注入）：
-#   AGNES_API_KEY      解说词 api 引擎必需
+#   AGNES_API_KEY      解说词 api 引擎必需；缺失则自动回退 local 引擎
 #   EULERPOOL_API_KEY  可选；不设在云端直接跳过（无代理、且被 Cloudflare 拦）
 # 可调环境变量：COLLECT_CN(auto|1|0) / ENGINE(api|local) / PRESET(agnes) / TIER(calm) / IV(300)
 set -uo pipefail
@@ -18,11 +18,45 @@ COLLECT_CN="${COLLECT_CN:-auto}"
 TIER="${TIER:-calm}"
 IV="${IV:-300}"
 
-mkdir -p "$HERE/_site" "$HERE/logs"
+mkdir -p "$HERE/_site" "$HERE/logs" "$HERE/data"
 LOG="$HERE/logs/ci_run.log"
 
 {
   echo "=== CI 单次管线启动 $(date -u '+%F %T UTC') 引擎=$ENGINE 采A股=$COLLECT_CN ==="
+
+  # ---- config.json：CI 无此文件（已 gitignore，避免密钥入仓）→ 由 example + Secret 现场生成 ----
+  # narrate.py --preset 需从 config.json 读 base/model；key 优先走 key_env(AGNES_API_KEY) 环境变量。
+  if [ ! -f "$HERE/config.json" ]; then
+    if [ -f "$HERE/config.json.example" ]; then
+      echo "--- 生成 config.json（来自 example + Secret）---"
+      AGNES_API_KEY="${AGNES_API_KEY:-}" "$PY" - <<'PY'
+import json, os
+cfg = json.load(open("config.json.example", encoding="utf-8"))
+ag = cfg.setdefault("llm", {}).setdefault("presets", {}).setdefault("agnes", {})
+k = os.environ.get("AGNES_API_KEY", "")
+if k:
+    ag["key"] = k
+json.dump(cfg, open("config.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+print("[ok] config.json 生成，agnes key %s" % ("已注入" if k else "缺失(将回退 local)"))
+PY
+    else
+      echo "[!] 无 config.json.example，无法生成 config.json"
+    fi
+  fi
+
+  # ---- 冷启动兜底：markets.py 假定 data/snapshot.json 已存在（本地一直由 collect_live.py 先建），
+  #      CI 冷启动（首次 / actions-cache 失效）时 data/ 为空 → markets.py 会 FileNotFoundError 整轮崩。
+  #      这里补一个空壳 {}，markets.py 对其赋值式打补丁即可自举出完整快照（main 内读均带 .get 兜底）。----
+  if [ ! -f "$HERE/data/snapshot.json" ]; then
+    echo "--- 冷启动：无 snapshot.json → 写入空壳自举 ---"
+    printf '{}' > "$HERE/data/snapshot.json"
+  fi
+
+  # ---- 无 key 时 api 引擎必失败 → 提前回退 local，保证页面仍有解说 ----
+  if [ "$ENGINE" = "api" ] && [ -z "${AGNES_API_KEY:-}" ]; then
+    echo "[!] 未设 AGNES_API_KEY → 回退 local 引擎"
+    ENGINE="local"
+  fi
 
   # ---- A股全市场采集（护东财额度：auto 仅当今日确有行情才采）----
   if [ "$COLLECT_CN" = "1" ]; then
@@ -43,7 +77,7 @@ except Exception:
     fi
   fi
 
-  # ---- 港美股行情 / 时段 / 外媒快讯 ----
+  # ---- 港美股行情 / 时段 / 外媒快讯（snapshot.json 主生产者，须在 narrate 之前）----
   echo "--- 港美股行情/时段/外媒快讯 ---"
   "$PY" run_to.py 180 "$PY" markets.py 2>&1 | tail -12
 
