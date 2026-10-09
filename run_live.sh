@@ -199,11 +199,19 @@ while true; do
     echo "--- [$TS] 重建 live.html（刷新档位=${TIER} ${IV}s） ---"
     # ⚠️ 引擎=local 时 build_live.py 会拒掉 local-synth 产物（exit 2，页面不更新）——
     #   这是有意的：师傅要求「不要任何合成的内容」。想跑本地模板必须显式 --allow-local。
+    BUILD_OK=1
     if [ "$ENGINE" = "api" ]; then
       "$PY" build_live.py --tier "$TIER" --refresh "$IV" 2>&1 | tail -3
+      BUILD_OK=${PIPESTATUS[0]}
     else
       echo "[!] ENGINE=local：build_live.py 默认拒收本地模板产物，页面将不更新"
       echo "    （要放行请手工执行：build_live.py --allow-local）"
+      BUILD_OK=0
+    fi
+    # ---- V1.9.42：build 成功才把数据推到 GitHub data 分支（线上固定页的数据源，不耗 Pages 额度）----
+    if [ "$BUILD_OK" = "0" ]; then
+      echo "--- [$TS] 推送云端数据（data 分支）---"
+      "$HERE/push_data.sh" 2>&1 | tail -3 || true
     fi
     echo "--- [$TS] 一轮完成 ---"
   } >>"$LOG" 2>&1

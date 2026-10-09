@@ -1,14 +1,15 @@
-name: 股市直播 · 刷新+部署 (CF Pages)
+name: 股市直播 · 固定页部署 (CF Pages)
 
-# B 方案（GitHub Actions）：跑一轮本地等价管线 → wrangler 推 CF Pages。
-# 单轮 CI 实测约 6 分钟（narrate API + 部署），故 schedule 间隔须大于 5 分钟，取 10 分钟；
-# active(120s) 在 Actions 上不可达（平台最小粒度 5min）。
+# 架构升级 V1.9.42（方案 ③）：页面固定 + 数据走云端接口动态刷新。
+#   · 线上固定页（pages.dev）**不再每轮重建部署** → 零 Pages 构建额度消耗（用户多个项目共用 Pages 额度）。
+#   · 直播数据由本地 Mac 循环每轮产出 live_data.json → 推到 GitHub 的 `data` 分支
+#     （非 Pages 生产分支，不触发构建）→ 线上页首屏异步拉取并轮询刷新。
+#   · 本 workflow 只在「改了外壳/管线并推 main」时跑一次，把固定页部署上去；
+#     日常数据更新完全不经过 Pages 构建。
 on:
-  schedule:
-    - cron: '*/10 * * * *'       # 每 10 分钟（单轮约 6 分钟，5 分钟会持续排队）
-  workflow_dispatch: {}          # 允许手动触发试跑
+  workflow_dispatch: {}          # 允许手动触发（首次部署 / 改外壳后重部署）
   push:
-    branches: [main]            # 推 main 即部署：cron 失效时的兜底，避免线上冻死
+    branches: [main]            # 推 main = 重新部署固定页（仅外壳变更时发生，不会每轮触发）
 
 permissions:
   contents: read
@@ -45,7 +46,7 @@ jobs:
           restore-keys: |
             live-state-
 
-      - name: Run pipeline (one round)
+      - name: Run pipeline (one round, builds the fixed shell)
         env:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
           EULERPOOL_API_KEY: ${{ secrets.EULERPOOL_API_KEY }}

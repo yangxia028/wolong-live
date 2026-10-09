@@ -449,7 +449,15 @@ body{background:var(--ivory); color:var(--ink);
   </div>
 
 <script>
-var DATA = __DATA__;
+/* V1.9.42 架构升级：页面固定（不再每轮重建部署），数据走云端接口动态刷新。
+   首屏异步拉 live_data.json → __renderApp(D) 渲染（每次整页加载只跑一次，
+   定时器不会堆叠）；刷新触发 = 云端数据 build_mtime 变化 → 整页 reload。
+   局部预览(127.0.0.1:8800) 走 serve_live.py 的 /__data__.json；
+   线上(pages.dev / yangxiaa.cc) 走 GitHub raw（data 分支，不触发 Pages 构建）。*/
+var DATA = null;
+function __renderApp(__D){
+  var DATA = __D;
+  window.__LIVE__ = __D;
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ===== 走马灯 ===== */
@@ -898,6 +906,44 @@ window.__applySess(DATA.session);
   document.getElementById('bcProg').textContent = feed.length+' 轮 / '+totalSegs+' 条';
   document.getElementById('bcBar').firstElementChild.style.width = '100%';
 })();
+} /* ===== __renderApp 结束（每次整页加载只跑一次） ===== */
+
+/* ===== 数据加载（V1.9.42）：固定页 + 云端数据动态刷新 =====
+   · 局部预览：serve_live.py 提供 /__data__.json（零延迟、不依赖外网）
+   · 线上：GitHub raw 的 data 分支（不触发 Pages 构建 → 不耗 Pages 额度）
+   首屏拉到即渲染；刷新触发见下方第二层脚本的 build_mtime 轮询。 */
+(function(){
+  var LOCAL  = location.origin + '/__data__.json';
+  var REMOTE = 'https://raw.githubusercontent.com/yangxia028/wolong-live/data/live_data.json';
+  function sources(){
+    // 线上域名走 GitHub raw；本地/回环先试本地端点
+    if(/pages\.dev$/.test(location.hostname) || location.hostname.indexOf('yangxiaa.cc') >= 0)
+      return [REMOTE];
+    return [LOCAL, REMOTE];
+  }
+  function load(cb){
+    var s = sources();
+    (function next(i){
+      if(i >= s.length) return cb(null);
+      fetch(s[i] + '?t=' + Date.now(), {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(d){ cb(d); })
+        .catch(function(){ next(i + 1); });
+    })(0);
+  }
+  load(function(d){
+    if(!d || !d.generated_at){
+      var tip = document.createElement('div');
+      tip.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;background:#232220;color:#B0894A;padding:6px 10px;font:12px/1.4 -apple-system,system-ui,sans-serif;border-radius:6px';
+      tip.textContent = '数据加载失败（网络不可达），请刷新或检查网络';
+      document.body.appendChild(tip);
+      return;
+    }
+    try { __renderApp(d); }
+    catch(e){ console.error('renderApp 失败:', e); }
+    try { sessionStorage.setItem('wolong_live_mtime', String(d.build_mtime || 0)); } catch(_){}
+  });
+})();
 </script>
 <script>
 /* 直播自动刷新 + 桌面通知 + 新消息标题  (V1.9.19)
@@ -937,25 +983,24 @@ window.__applySess(DATA.session);
     newCount++;
     document.title = '【新消息 ×'+newCount+'】' + TITLE_BASE;
     if(!('Notification' in window) || Notification.permission !== 'granted') return;
-    // 仅新流时拉一次最新数据：取本轮市场 + 首段摘要作通知正文（频率极低）
-    fetch('__data__.json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
-      var mk = (d.commentary && d.commentary[0] && d.commentary[0].market) || '';
-      var mkName = CN[mk] || mk || '市场';
-      var firstText = '';
-      if(d.feed && d.feed.length){
-        var feed = d.feed.slice().reverse();
-        var s0 = (feed[0].segments || [])[0];
-        if(s0) firstText = s0.text || '';
-      }
-      if(!firstText && d.commentary && d.commentary[0] && d.commentary[0].segments){
-        firstText = (d.commentary[0].segments[0] || {}).text || '';
-      }
-      var body = firstText
-        ? (firstText.slice(0,80) + (firstText.length>80 ? '…' : ''))
-        : (mkName + ' 新一轮解说已更新');
-      try { new Notification('卧龙台 · 新解说（'+mkName+'）', {body: body, tag:'wolong-live'}); }
-      catch(e){}
-    }).catch(function(){});
+    // 直接用已加载的 window.__LIVE__（无需再拉一次）：取本轮市场 + 首段摘要作通知正文
+    var d = window.__LIVE__ || {};
+    var mk = (d.commentary && d.commentary[0] && d.commentary[0].market) || '';
+    var mkName = CN[mk] || mk || '市场';
+    var firstText = '';
+    if(d.feed && d.feed.length){
+      var feed = d.feed.slice().reverse();
+      var s0 = (feed[0].segments || [])[0];
+      if(s0) firstText = s0.text || '';
+    }
+    if(!firstText && d.commentary && d.commentary[0] && d.commentary[0].segments){
+      firstText = (d.commentary[0].segments[0] || {}).text || '';
+    }
+    var body = firstText
+      ? (firstText.slice(0,80) + (firstText.length>80 ? '…' : ''))
+      : (mkName + ' 新一轮解说已更新');
+    try { new Notification('卧龙台 · 新解说（'+mkName+'）', {body: body, tag:'wolong-live'}); }
+    catch(e){}
   }
 
   /* ---- 切回标签页：有未读则刷新追上、标题复位 ---- */
@@ -965,21 +1010,25 @@ window.__applySess(DATA.session);
   window.addEventListener('focus', onReturn);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) onReturn(); });
 
-  /* ---- 心跳轮询 ---- */
+  /* ---- V1.9.42 数据版本轮询（替代原 heartbeat 页面 mtime 轮询）----
+     固定页不再重建，故轮询云端 live_data.json 的 build_mtime；
+     变化时整页 reload（保留伪直播回放体验）。sessionStorage 记已渲染版本，防死循环。*/
+  var REMOTE = 'https://raw.githubusercontent.com/yangxia028/wolong-live/data/live_data.json';
   function poll(){
-    fetch('__heartbeat__.json',{cache:'no-store'})
+    fetch(REMOTE+'?t='+Date.now(),{cache:'no-store'})
       .then(function(r){return r.json();})
       .then(function(d){
-        if(last===null){ last=d.mtime; }
-        else if(d.mtime!==last){
-          last=d.mtime;
-          if(document.hidden) notifyNew();
-          else location.reload(true);
+        var mt = Number((d && d.build_mtime) || 0);
+        if(!mt) return;
+        var seen = 0; try{ seen = Number(sessionStorage.getItem('wolong_live_mtime')||0); }catch(_){}
+        if(mt !== seen){
+          try{ sessionStorage.setItem('wolong_live_mtime', String(mt)); }catch(_){}
+          if(document.hidden) notifyNew(); else location.reload(true);
         }
       }).catch(function(){});
   }
   poll();
-  setInterval(poll,4000);
+  setInterval(poll,15000);
 })();
 
 /* V1.9.10 主播徽标：下一轮正在采集/生成 → 「搜索中」，否则「ON AIR」。

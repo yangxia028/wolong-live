@@ -51,7 +51,7 @@ def _clean_commentary_text(c):
     return c
 
 
-VERSION = "1.9.41"
+VERSION = "1.9.42"
 
 
 def load_json(p, default=None):
