@@ -1,4 +1,4 @@
-# 部署方案 · Cloudflare 可行性评估（目标版本 v1.9.37）
+# 部署方案 · Cloudflare 可行性评估（目标版本 v1.9.39）
 
 > 结论先行：**CF Pages 托管 `live.html` 完全可行且是已验证范式；但「每 300s 刷新管线」无法在 CF Pages 上跑，必须配一个外部算力（免费云服务）跑 Python 管线再推 Pages。** 纯 CF 单栈不成立，推荐「CF Pages 静态 + 外部免费算力跑管线」混合架构。
 
@@ -131,3 +131,27 @@ GitHub Actions cron（每 5min）
 - [ ] data/ 跨轮持久化生效（次轮 snapshot 接续，不回到冷启动）
 - [ ] live.html 经白名单 + 404.html + cache-bust 验证（防内部文件泄漏/旧缓存）
 - [ ] yangxiaa.cc/直播 经 site-router 可访问
+
+---
+
+### 7.6 实测记录（2026-10-09 · v1.9.38 → v1.9.39）
+
+**首次 CI 部署：✅ 成功**。手动 `workflow_dispatch` → Success（1m16s）→ `https://wolong-live.pages.dev/live.html` 线上可访问，内容真实：A股 盘前解说 + 3 条带「原文↗」的国内快讯（鸿富瀚业绩预告 / 贝莱德减持恒瑞 H 股 / 上交所终止企查查 IPO）。**V1.9.36 的「A股 场快讯配比 + 资讯可见性」修复在云端同样生效**。
+
+**实测抓出的三个云端专属坑（本地全都不暴露）**：
+
+| # | 坑 | 现象 | 根因 | 修法 |
+|---|---|---|---|---|
+| 1 | **冷启动无快照** | 整轮 `FileNotFoundError` 崩 | `markets.py main()` 硬 `open(data/snapshot.json)`；本地该文件因历史运行一直存在 | `ci_run_once.sh` 缺失时写空壳 `{}` 自举（V1.9.38） |
+| 2 | **CI 时区 = UTC** | 北京 17:12 被判成 A股「盘前」，页面/解说时间戳全显示 09:12（差 8 小时） | `market_state()` 的 `now = now or datetime.now()` 及各处 `time.strftime` 走**进程本地时区**；runner 是 UTC | `ci_run_once.sh` `export TZ=Asia/Shanghai` + `deploy.yml` job `env.TZ`（V1.9.39） |
+| 3 | **无 config.json** | `narrate --preset` 直接 exit 1 | `config.json` 含密钥被 gitignore，CI 无此文件 | 由 `config.json.example` + Secret `AGNES_API_KEY` 现场生成（V1.9.38） |
+
+**新增运维观测**：`ci_run_once.sh` 每轮把自检摘要写入 `$GITHUB_STEP_SUMMARY`（运行时间 / 当前场次 / 快讯池 / traded_today / 解说段数 / 产物大小），在 Actions 运行页直接可见，不必翻全量日志。
+
+**⚠️ 成本硬约束（B 方案的根本问题）**：
+- 私有仓 Free 计划仅 **2,000 分钟/月**（**public 仓无限免费**）；计费按 **job 向上取整到整分钟**（本轮 1m16s → 计 2 分钟）。
+- cron `*/5` 全天 = 288 轮/天 × 2 分钟 = **576 分钟/天 ≈ 17,280 分钟/月 → 约 3.5 天耗尽**。
+- 默认 spending limit = $0 → **耗尽后不是扣费，而是静默停摆**（页面停更，直到下月 1 日额度重置）。降到 45 分钟/轮才能压进额度，直播体验不可接受。
+- 结论：**B 方案适合验证链路，不适合长期承载**。长期二选一：**① 仓库转 public**（无限免费，代价＝源码公开）或 **② 换常驻算力**（§4 的 Oracle Free Tier，真免费无限、行为与本地一致）。Actions 可保留作兜底通道。
+
+**入口问题**：`*.pages.dev` 在中国大陆直连不稳（实测连接超时）。对外最终入口应经既有 `site-router`（`纽扣岛/site-router/`）挂 `yangxiaa.cc/live*` → `wolong-live.pages.dev`（ROUTES 表加一行 + zone 级路由，需 CF 凭证，尚未执行）。
