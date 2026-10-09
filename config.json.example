@@ -1,0 +1,94 @@
+{
+  "name": "股市直播",
+  "version": "1.9.37",
+  "stage": "一期 · 本地验证版（三市场 · AI 现场解说 · 真实数据 · 快讯24h滚动）",
+  "entry": "live.html",
+  "personas": [
+    "yx"
+  ],
+  "markets": [
+    "cn",
+    "hk",
+    "us"
+  ],
+  "market_sessions": {
+    "cn": "09:30–11:30 / 13:00–15:00（北京时间）",
+    "hk": "09:30–12:00 / 13:00–16:00（北京时间）",
+    "us": "盘前 16:00–21:30 / 常规 21:30–次日 04:00 / 盘后 04:00–08:00（夏令时；冬令时整体 +1h）"
+  },
+  "compliance": {
+    "celebrity_mode": "style-tag-only",
+    "note": "人设一律为气质风格标签，prompt 内不写具体真人姓名；页面固定挂「仅供研究，非投资建议」"
+  },
+  "architecture": "生成永远在本地，CF 只做分发（一期完全本地，零 CF 依赖）",
+  "data_sources": [
+    "eastmoney",
+    "tencent",
+    "sina"
+  ],
+  "note": "V1.9.22：① 本场统计「日内走势」由四点骨架升级为 5 分钟 K 线图（涨=金/跌=灰、含昨收基准虚线）；② 统计卡按当前开市市场自动定位（AH 同开→A股 / 单港股→港股 / 单美股→美股 / 全休→最近收场），仍可在右侧手动切 A股/港股/美股 tab；③ 删卡片内冗余「市场状态」行（导播台已有）；④ 恢复 eulerpool 美股个股新闻/经济日历，并根治挂起：eulerpool_src.py 改「线程+join 硬超时」告别代理隧道不超时导致的整轮卡死，run_live.sh 仍套 run_to 90s 双保险；⑤ 美股情绪维度接入 CBOE VIX（252 日分位：低分位=偏多金、高分位=偏空灰）。 V1.9.23：本场统计卡由「4 条竖排滑动条」重构为「2×2 紧凑瓦片 + 数字直读」，强度/外围直接显示百分比与 ▲▼ 箭头（红涨绿跌），广度用红绿组成条显示多空占比，K线高度 92→70px 收窄，并补港股卡（同模板、情绪 N/A）。 V1.9.24：统计卡删掉卡内「市场名 + 数据时间」表头（市场名已由 panel 头部的 A股/港股/美股 tab 表达），数据日期时间下移到走势图下方的说明文字处，替换原来与走马灯重复的「昨收 / 涨跌幅」；该时间取分时接口交易日 + 最后一根 K 线分钟柱（与图同源），不再用盘后刷新的快照 asof。 V1.9.25：美股卡广度缺口接入 DeanFi 免费源(S&P500 口径，GitHub+R2 静态托管，无需鉴权/无频率限制；盘中每15分更新)。markets.py 新增 collect_deanfi_breadth()，main 接入 snap['us_breadth_deanfi'] 并保留上轮缓存兜底；build_live.compute_market_stats 美股分支优先用该数据(涨/跌家数+多方占比+>200MA%)，前端广度瓦片追加「S&P500」标注。注：DeanFi 仅 S&P500(503只)，非 NYSE/HKEX，sub 显式标注避免误导；其 interpretation 文案有 bug 已弃用，只用原始数值。 V1.9.26：A股盘前状态落地——MARKET_SEGS['cn'] 新增 08:00-09:30 的 pre 段，原「08:00-09:30 全场休息」死区改为「A股·盘前」（与美股盘前同源的 narrate 盘前分支自动接管，产 A股盘前解读场）。同步修节假日覆盖逻辑：只对常规交易(open)段生效，盘前/盘后段不再被陈旧 asof 误判成休市（否则 A股盘前会被压回全场休息）。narrate 盘前文案「今晚才交易」改为中性「即将开始交易」（原措辞只适用美股盘前）。 V1.9.27：全天24h时段总表成文(docs/时段状态总表.md)并修两处——①冬令时00:00-01:00漏判(美股常规段被dst平移出1440，旧归一化门槛不触发，明明在交易中却显示全场休息；改 m/m+1440/m-1440 三向比较)；②空档命名：三市场全closed时不再一律写「全场休息」，新增 IDLE_WINDOWS 区分「午间休市·13:00续盘」(12:00-13:00)与「场次交接·美股盘前17:00」(仅冬令时16:00-17:00)，active 仍为 None、不影响选场。逐分钟扫全天实测空档仅此两处。⚠ 运维铁律：改 markets.py 后必须 python3 start_server.py restart，否则 serve_live 常驻进程的模块缓存会继续吐旧 session。 V1.9.28：修周末判定 bug——原 `not is_weekend` 守卫把周末 cn/hk 的 holiday 覆盖整个短路掉，导致周六/周日 10:00 被 _state_of 时钟段(09:30-15:00)误判成「A股/港股 交易中」、时段图错误点亮。改为：周末对 cn/hk 强制 closed+holiday(独立于 asof，a=None 也压)；美股不压，保留其周六 00:00-04:00 真实盘中(美东周五常规段跨到北京周六晨)。空档命名补「周末休市」(周末非午休/交接空档时显示，替代全场休息)。20 条单测全 PASS。时段总表已补周末/节假日行。 V1.9.29：修两处显示问题（师傅 2026-10-09 截图反馈）——① 本场统计卡「日内走势」显 N/A：腾讯分时在**开盘前几分钟**只回 1–2 个点（实测 09:21 轮 1 点、09:28 轮 2 点，接口本身正常、开盘后 09:34 已回 8 点），而 collect_intraday 的守卫是 len(pts)<3 直接判失败，且本轮残缺值会整体覆盖上一轮 → A股/港股整段 N/A、最长要等 300s 一轮。改为：门槛 3→1（有多少画多少）；并新增**同日回退**——本轮点数少于上一轮同市场且 date 相同时沿用上一轮更完整的那份（防盘中抽风把已画好的整日图抹成 N/A）；跨交易日不沿用（宁可 N/A 也不显示错日期的图）。13 条单测全 PASS。② 本场统计与全球资讯两个 panel 零间距、边框贴成一条线：CSS 原写 `.stats-band` 而 HTML 用的是 `.stats-panel`，选择器对不上=死规则 → 更名生效（margin-bottom:18px）。 V1.9.30：修全球指数走马灯缺 3 条（美股道指/纳指/标普）。根因：gb_ 代码原误走 parse_cn(A股长格式)，gb_ 字段序为「名,现价,涨跌幅%,时间,涨跌额,昨收…」，p[2]=涨跌幅% 而原逻辑拿 p[3](时间戳串)当现价→price=None→pct=None 被丢弃。新增 parse_gb 专用解析(p[1]=现价/p[2]=涨跌幅%/p[4]=涨跌额)，collect_global 给 gb_ 单独分支路由。现 11 条全球指数全齐。单测：11 条齐全且 gb_ pct 非 None。 V1.9.31：解说逻辑 A+B 调整（回应师傅「偏指数、不解读走势/格局/原因」反馈）。A 提示词：内容顺序模板「报本市场指数（逐个原样报）」降级为「一句话概括强弱量级、不逐条念数字」，并显式要求讲【走势形态】【格局】【主线】；新增铁律「指数日内振幅通常远小于个股板块，重心在结构/格局/主线」。B 组装：facts() 新增 intraday_summary（三市场分时 K 线→开高低收/振幅/斜率/形态标签，只喂摘要不喂原始序列）、us_breadth（DeanFi S&P500 广度，已采未用现接入）；build_prompt 在指数块后注入【日内走势形态】+美股【格局】块。实测：三市场 prompt 均含走势形态，美股广度解析出真实值（涨339/跌163 A-D 2.08）。A股涨跌家数/板块主线此前已接入，本次主要靠提示词引导模型消费已给数据。不调 LLM、不重启服务（narrate 每轮 spawn，下一轮自动生效）。 V1.9.32：C 方向落地——news 与 sector 并列 + 轻量关键词关联钩子。① facts() 新增 link_news_sectors()：快讯主题词→A股行业板块(仅匹配今日真实出现的板块名)，产出 news_sector_links（含方向 领涨/承压）；② build_prompt 在快讯块后注入【快讯↔板块 关联提示】，显式给 LLM 因果线索（如「半导体领涨，对应英伟达业绩快讯」），并加铁律「关联是关键词线索、非确定性，扯不上别硬凑」。⚠ 双引擎铁律：改 build_prompt 只对 api 引擎生效，验证须 narrate.py --engine api --preset agnes；local 引擎不读 build_prompt，仅作回退。 V1.9.33：修「解说词里行情数字整批丢失」bug（师傅 2026-10-09 截图：正文出现「创业板指-，科创50-，印制电路板-、半导体材料-」，港股却正常）。根因 = _fix_market_pct 的行情真值池 truth 注册不全：① **漏注册 A股指数** —— 池里注册的是 markets.cn（实时接口口径），但 prompt 给 LLM 的 A股指数取自 F['index']（东财口径），两套口径数值本就不同（实测创业板指 index=-1.42 vs markets.cn=-1.58），于是模型**照着 prompt 写出的正确数字**被判「不在真值里 → 转写变形」而删除；② **漏注册板块** sec_top/sec_bottom 的 pct 从未进池 → 讲板块涨幅同样被删。港美股正常正是因为 markets.hk/us 早已注册（恒生 1.40 命中）。修法三条（narrate.py，均在同函数内）：① truth 补注册 F['index'] 与 sec_top/sec_bottom；② pct_re 正则由 `(\\d+(?:\\.\\d+)?)\\s*%` 改为 `([+-]?\\s*\\d+(?:\\.\\d+)?)\\s*%` —— **把正负号一起吃掉**，否则删掉「1.83%」会留下裸「-」（「创业板指-」的第二真凶），_sub 内 raw 先 strip 空格再 float；③ 兜底清理「汉字/数字/百分号 后悬空的 +- 且紧跟标点或句尾」，杜绝任何漏网裸符号。回归实测：A股指数/板块数字全部保留、真·转写变形（1.94 应 1.40）仍正确删除且不留裸符号、港股路径完好。 V1.9.34：RRG 跨资产轮动状态接入直播（师傅拍板路径①只读、不改 RRG 生态 + 两产品联动）。① narrate facts() 加载 data/rrg_state.json，build_prompt 注入【跨资产轮动状态】块（定性：象限分布+risk_read，不喂原始百分比避免被 _fix_market_pct 误删；铁律「RRG 跨资产不含 A股行业，只讲全球资金/风险偏好背景」）；② build_live compute_market_stats 把 RRG 按市场切片（cn=沪深300/创业板、hk=恒生、us=标普500/纳指）挂到统计卡；③ _live_shell.html 「外围」瓦片替换为「资产象限」RRG 标签 + 点击打开 yangxiaa.cc/rrg/（target=_blank，两产品联动）；④ run_live.sh 每轮非致命调用 collect_rrg.py 保活（云端也覆盖）。⚠ 云端验收项：collect_rrg 需 server→server 出网白名单/代理可达 yangxiaa.cc。 V1.9.35：统计台/资讯台布局对齐修复（师傅部署前发现：美股卡片因广度说明多一行比 AH 高，导致资讯台上下跳、右栏底缘与左解说台对不齐）。修复 = ① .stage 改 align-items:stretch 让左右两栏等高；② .ms-sub 预留 min-height:3em（2 行）使各市场卡片等高、切 tab 不跳；③ 右栏改 flex 列容器、资讯台 .news-panel flex:1 吸收统计台高度差、.news-list 去固定 max-height 改 flex 填充 → 资讯台底缘对齐解说台底缘。纯布局/CSS，无数据逻辑改动。 V1.9.36：三件事（师傅 2026-10-09 反馈）。①**资讯台布局二次修复**——V1.9.35 让资讯台 flex:1 吸收高度差是矫枉过正：右栏被内容撑高、左栏解说流下方反而空一大块（「这种下边缘对齐没有意义」）。本版改「高度由内容定 + 底缘对齐 + 资讯台最多 5 条」：左栏 panel 变 flex 列、.stream 改 flex:1 1 0（basis 0 → 不参与内容撑高，只吸收行高剩余）+ min-height 420px、panel-hd/anchors/stream-foot 设 flex:0 0 auto；右栏去掉 height:100%（它与 grid 行高循环依赖，是「被撑高」的真因）、资讯台保留 flex:1 让边框铺到右栏底、列表加 max-height=5 条（JS 量首条实际高度写 CSS 变量 --nw-row，默认 86px 兜底，resize 重算）；窄屏单列时 stream 回固定 600px。②**解说流看不见 A股 资讯**（右侧资讯台抓了一堆、解说里毫无体现）——根因三处：(a) 快讯选取「eulerpool 优先 + 其余」[:8] 不设上限，实测 A股 盘中 26 条 eulerpool 把 8 个坑位全占掉，东财快讯/东财财经一条都进不了 prompt → 改为模块级 pick_news() 按场次配比混采（cn 6中媒+2美股 / hk 4+3+1 / us 2+5+1 / 全球 4+3+1），并加**时效闸**（Eulerpool 非当日旧闻超 24h（美股 48h）不入 prompt，空位由最新中媒补齐——实测 A股 盘中 8 条全变成 30 分钟内的快讯）；(b) prompt 只喂 news[:5]，配额选中的第 6~8 条白选 → 放宽为全量 8 条，标签「外媒快讯」改「本轮快讯」（现混中文源）；(c) 一条**自相矛盾的死禁令**：无条件往所有场次灌「没有全市场个股数据源、绝对不许提涨跌家数/板块涨幅」，而 A股 场上面明明给了这些数据 → 模型被压得绕开板块与广度、退回去念指数和个股（正是师傅观察到的现象）；改为 A股 盘中场次正向要求「你有全市场数据、必须用，只禁上面没给的」，港美股/全球场保留原禁令。③**快讯↔板块关联增强**：新增行业簇表 NEWS_SECTOR_CLUSTERS（泛称/实体词→今日真实在榜细分板块，如「传媒」→媒体/影视/院线/广播/出版，「黄金」→黄金/贵金属；剔掉 ai/芯片这类泛词、收紧 Tesla 簇以免误挂燃料电池与风电零部件），加「板块名直接命中」与同板块去重（每板块最多 1 条、整体最多 4 条）；collect_live.em_sectors pz 10→30（请求次数不变，只为关联提供更宽板块池，页面/prompt 仍各取 5 条）；pick_news 对中媒桶做「关联优先」排序，让接得上主线的快讯优先入选。实测当日：黄金快讯→黄金 +6.03%/贵金属 +5.45%、传媒快讯→传媒 +5.66%/视频媒体 +19.98%，Tesla 旧闻不再误挂风电零部件。\nV1.9.37：① 页面右上角 breadcrumb「实验台 → 股市直播」整段移除（含其版本号展示）；品牌与桌面通知按钮保留。② 部署试 B 方案（GitHub Actions）：新增 .github/workflows/deploy.yml + ci_run_once.sh，每 5 分钟跑一轮管线→wrangler 推 CF Pages；data/ 状态经 actions/cache 跨轮持久化。config.json 因含 agnes 密钥不入库，改由 config.json.example + 仓库 Secrets(AGNES_API_KEY / CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID) 提供；EULERPOOL 云端默认跳过（无代理、且被 Cloudflare 拦）。",
+  "anchor_personas": [
+    {
+      "key": "yx",
+      "name": "杨夏",
+      "role": "散户嘴替"
+    }
+  ],
+  "news_sources": [
+    "CNBC",
+    "MarketWatch",
+    "NPR",
+    "SeekingAlpha"
+  ],
+  "viewers": "在线观众读真实接口（window.VIEWS_API），无后端时显示「—」，绝不编造",
+  "refresh": {
+    "tiers": {
+      "active": 120,
+      "calm": 300
+    },
+    "auto": true,
+    "strategy": "开市常规交易→活跃档(120s)；盘前/盘后/休市→平稳档(300s)。COLLECT_CN=1 时强制平稳档以保护东财额度。",
+    "rpm_note": "解说 LLM 免费档 10 RPM；当前 1 人设/轮，活跃档 120s≈0.5 调用/分，余量充足。",
+    "note": "两档：活跃档120s / 平稳档300s。档位由 markets.py 的数据驱动交易日判定自动选（任一市场 state=open → 活跃档；全休 → 平稳档）。解说节奏是另一件事（前端播放倍速：平稳1/活跃2，每条流间隔 60s/30s），与刷新频率无关。引擎默认 api(agnes)，ENGINE=local 可退回本地模板不烧额度。"
+  },
+  "llm": {
+    "presets": {
+      "deepseek": {
+        "base": "https://api.deepseek.com/v1",
+        "model": "deepseek-chat"
+      },
+      "agnes": {
+        "base": "https://apihub.agnes-ai.com/v1",
+        "model": "agnes-2.5-flash",
+        "key_env": "AGNES_API_KEY",
+        "key": "${AGNES_API_KEY}",
+        "rpm": 10,
+        "note": "base/model 已按官网文档校正（apihub.agnes-ai.com/v1 · agnes-2.5-flash · Authorization: Bearer）。免费档 10 RPM（企业认证 20、Token Plan 1000）。narrate.py 调用间按 60/rpm 留间隔防突发超频。"
+      }
+    }
+  },
+  "eulerpool": {
+    "enabled": true,
+    "api_key_env": "EULERPOOL_API_KEY",
+    "base_url": "https://api.eulerpool.com/api/1",
+    "proxy": "http://127.0.0.1:7897",
+    "proxy_required": true,
+    "timeout": 20,
+    "retries": 3,
+    "tickers": [
+      "AMD",
+      "DELL",
+      "CEG",
+      "NVDA",
+      "AAPL",
+      "TSLA",
+      "MSFT",
+      "AMZN",
+      "META",
+      "GOOGL"
+    ],
+    "calendar_days_ahead": 5,
+    "calendar_country": "US",
+    "note": "eulerpool API 必须走代理；但本沙箱出口 IP 被 Cloudflare 硬拉黑（403 'Sorry, you have been blocked'），且经代理的 HTTPS CONNECT 隧道 urllib 不执行 socket 超时 → eulerpool_src.py --patch 会无限挂起、卡死整轮循环（实测 2026-10-08 14:28 起卡死，导致解说流停更 + 导播台误显「全场休息」）。故 V1.9.21 暂时 disabled：脚本检测到 enabled=False 即秒退、不发起网络，彻底消除卡死源。待有可用出口代理（出口 IP 未被 Cloudflare 拉黑）再改回 True。注：即便 enabled=False，run_live.sh 仍按 EULERPOOL_API_KEY 存在而调用 eulerpool_src.py --patch，但脚本内部 enabled 闸会秒退，无网络无挂起。"
+  }
+}

@@ -1,0 +1,20 @@
+# ===== 运行时状态（CI 用 actions/cache 持久化，勿入仓）=====
+data/
+logs/
+.cache/
+.loop.lock/
+__pycache__/
+*.bak*
+*.bak-*
+.live_shell.html.bak-*
+
+# ===== 生成产物（CI 每轮重建）=====
+live.html
+_site/
+
+# ===== 含密钥的本地配置（改用 config.json.example + 仓库 Secrets）=====
+config.json
+
+# ===== 本地服务/IDE 杂项 =====
+.workbuddy/
+.DS_Store

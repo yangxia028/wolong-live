@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本场统计 · 原型 C（v2）</title>
+<style>
+:root{
+  --ink:#232220; --gold:#B0894A; --gold-d:#8A6A33; --ivory:#FBF9F4;
+  --line:#E5E1D8; --muted:#5F5E5A; --na:#B4B2A9;
+  --pos:#BA7517; --neg:#888780; --slot:#F1EFE8; --mid:#B4B2A9;
+  --green:#3B6D11; --greenbg:#EAF3DE;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ivory);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  padding:32px 24px 48px;}
+.head{max-width:940px;margin:0 auto 22px;}
+h1{font-family:"Songti SC","STSong",serif;font-weight:500;font-size:22px;margin:0 0 6px;letter-spacing:1px;}
+.sub{color:var(--muted);font-size:13px;margin:0;line-height:1.6;}
+.legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;font-size:12px;color:var(--muted);}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.legend .sw-pos{background:var(--pos);} .legend .sw-neg{background:var(--neg);}
+.legend .sw-na{background:var(--slot);border:0.5px solid var(--na);}
+.legend .sw-dot{background:var(--gold);}
+.grid{max-width:940px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.card{background:#fff;border:0.5px solid var(--line);border-radius:12px;padding:16px 18px;}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.mkt{font-weight:500;font-size:15px;font-family:"Songti SC","STSong",serif;}
+.badge{font-size:11px;padding:3px 10px;border-radius:9px;background:var(--greenbg);color:var(--green);}
+.badge.off{background:var(--slot);color:var(--muted);}
+.seg{font-size:11px;color:var(--muted);text-align:right;margin-bottom:12px;}
+.dim{margin:12px 0;}
+.dim .lab{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+.bar{position:relative;height:8px;background:var(--slot);border-radius:4px;margin:5px 0 3px;}
+.bar .mid{position:absolute;left:50%;top:-2px;width:0.5px;height:12px;background:var(--mid);}
+.bar .fill{position:absolute;top:0;height:8px;border-radius:4px;}
+.bar .fill.neg{background:var(--neg);}
+.bar .fill.pos{background:var(--pos);}
+.val{font-size:11px;color:var(--ink);}
+.val.na{color:var(--na);}
+.val .src{color:var(--na);font-size:10px;margin-left:4px;}
+.trend{margin-top:16px;padding-top:13px;border-top:0.5px solid var(--line);}
+.trend .lab{font-size:12px;color:var(--muted);}
+.spark{width:100%;height:36px;margin:6px 0 4px;}
+.spark svg{display:block;width:100%;height:36px;}
+.tval{font-size:11px;color:var(--muted);}
+.foot{max-width:940px;margin:22px auto 0;font-size:11px;color:var(--muted);line-height:1.7;
+  padding-top:14px;border-top:0.5px solid var(--line);}
+.foot b{color:var(--ink);font-weight:500;}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>本场统计 · 原型 C</h1>
+  <p class="sub">状况剖面（强度 / 广度 / 情绪 / 外围）＋ 日内走势 · 一套框架兼容 A / H / 美股，按数据可获得性逐市场降级</p>
+  <div class="legend">
+    <span><i class="sw-pos"></i>偏强 / 偏多（向右）</span>
+    <span><i class="sw-neg"></i>偏弱 / 偏空（向左）</span>
+    <span><i class="sw-na"></i>N/A（该市场无此数据）</span>
+    <span><i class="sw-dot"></i>日内走势（金点＝收位；开→高→低→收四点）</span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- ============ A股 ============ -->
+  <div class="card">
+    <div class="ch"><span class="mkt">A股</span><span class="badge">交易中</span></div>
+    <div class="seg">第 2 节 · 13:35</div>
+
+    <div class="dim">
+      <div class="lab"><span>强度</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:17%"></span></div>
+      <div class="val">上证 −0.65% · 深成 −1.72% · 创业 −1.9%</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>广度</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:42%"></span></div>
+      <div class="val">涨 1200 / 跌 3800（空方占优）</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>情绪</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill pos" style="left:50%;width:28%"></span></div>
+      <div class="val">涨停 45 / 跌停 3（偏热）</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>外围</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:9%"></span></div>
+      <div class="val">剔除 A 股后的全球股指均值偏弱</div>
+    </div>
+
+    <div class="trend">
+      <div class="lab">日内走势</div>
+      <div class="spark" id="sp-cn"></div>
+      <div class="tval">冲高回落，收在低位（开 3839 → 高 3864 → 低 3815 → 收 3817）</div>
+    </div>
+  </div>
+
+  <!-- ============ 港股 ============ -->
+  <div class="card">
+    <div class="ch"><span class="mkt">港股</span><span class="badge">交易中</span></div>
+    <div class="seg">第 2 节 · 13:35</div>
+
+    <div class="dim">
+      <div class="lab"><span>强度</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:14%"></span></div>
+      <div class="val">恒指 −0.55% · 恒科 −1.72%</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>广度*</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:31%"></span></div>
+      <div class="val">个股 涨 5 / 跌 10（近似）</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>情绪</span></div>
+      <div class="bar"><span class="mid"></span></div>
+      <div class="val na">N/A（Eulerpool 不覆盖港股）</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>外围</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:9%"></span></div>
+      <div class="val">剔除港股后的全球股指均值偏弱</div>
+    </div>
+
+    <div class="trend">
+      <div class="lab">日内走势</div>
+      <div class="spark" id="sp-hk"></div>
+      <div class="tval">冲高回落（开 24032 → 高 24146 → 低 23953 → 收 23998）</div>
+    </div>
+  </div>
+
+  <!-- ============ 美股 ============ -->
+  <div class="card">
+    <div class="ch"><span class="mkt">美股</span><span class="badge off">收盘(昨)</span></div>
+    <div class="seg">上一交易日</div>
+
+    <div class="dim">
+      <div class="lab"><span>强度</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:14%"></span></div>
+      <div class="val">道指 −0.66% · 纳指 −0.22% · 标普（均值）</div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>广度<span class="src">代理</span></span></div>
+      <div class="bar"><span class="mid"></span><span class="fill pos" style="left:50%;width:22%"></span></div>
+      <div class="val">活跃个股 8 只（Eulerpool 新闻覆盖）<span class="src">非涨跌家数</span></div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>情绪<span class="src">代理</span></span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:12%"></span></div>
+      <div class="val">今日美宏观事件 3 项（经济日历）<span class="src">无数值</span></div>
+    </div>
+    <div class="dim">
+      <div class="lab"><span>外围</span></div>
+      <div class="bar"><span class="mid"></span><span class="fill neg" style="right:50%;width:10%"></span></div>
+      <div class="val">非美全球股指（日经 / 富时 / 巴西）</div>
+    </div>
+
+    <div class="trend">
+      <div class="lab">日内走势</div>
+      <div class="spark" id="sp-us"></div>
+      <div class="tval">上一交易日：高开低走后小幅回收（开=高 51406 → 低 50917 → 收 51180）</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  <b>降级规则（一套框架，逐市场裁剪）：</b><br>
+  · <b>A股</b> 数据最全，四维度全亮（强度＝指数；广度＝真实涨跌家数；情绪＝涨跌停比；外围＝剔除自身后的全球股指均值）。<br>
+  · <b>港股</b> 无 breadth / 涨跌停 → 广度用 15 只个股涨多跌少<b>近似</b>（标 *）；情绪 N/A（Eulerpool 端点仅覆盖美股）。<br>
+  · <b>美股</b> 非交易时段仅昨收快照 → 强度取 3 指数均值；<b>广度 / 情绪为 Eulerpool 代理</b>（活跃新闻个股数 / 宏观事件密度，非真 breadth，因 Eulerpool 无涨跌家数源）；外围＝非美全球股指；日内走势为上一交易日形态。<br>
+  <b>得分语义：</b>中心 = 均衡；左 = 偏空；右 = 偏多；长度 = 偏离程度。<b>日内走势</b> = 开→高→低→收四点折线，零新增数据即可看「高开低走 / 冲高回落」。本原型为示例数据，落地时由实时 snapshot 计算。
+</div>
+
+<script>
+function spark(id, d){
+  var el=document.getElementById(id); if(!el) return;
+  var W=120,H=36,pad=4;
+  var v=[d.o,d.h,d.l,d.p], mn=Math.min.apply(null,v), mx=Math.max.apply(null,v), rng=(mx-mn)||1;
+  var X=[pad, W/3, 2*W/3, W-pad];
+  var Y=function(x){ return H-pad - (x-mn)/rng*(H-2*pad); };
+  var pts=X.map(function(x,i){ return x.toFixed(1)+','+Y(v[i]).toFixed(1); }).join(' ');
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
+    +'<polyline points="'+pts+'" fill="none" stroke="#B0894A" stroke-width="1.5" stroke-linejoin="round"/>'
+    +'<circle cx="'+X[0]+'" cy="'+Y(d.o).toFixed(1)+'" r="2" fill="#B0894A"/>'
+    +'<circle cx="'+X[3]+'" cy="'+Y(d.p).toFixed(1)+'" r="2.6" fill="#8A6A33"/>'
+    +'</svg>';
+}
+spark('sp-cn',{o:3838.98,h:3864.12,l:3815.27,p:3817.09});
+spark('sp-hk',{o:24031.66,h:24146.01,l:23953.41,p:23997.70});
+spark('sp-us',{o:51406.44,h:51406.44,l:50917.42,p:51179.87});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股市解说直播 · 技术预研 · 卧龙台</title>
+<style>
+/* ============================================================
+   卧龙台视觉设计系统 · 金墨象牙白 / Luxury Editorial
+   来源：yangxiaa.cc（复调信号台）+ 突破候选模型（ub_screener）
+   ── 配色 token 全台锁定，跨项目一致，任何项目不得私自改 hex ──
+   用法：复制本文件 → 仅替换 <body> 数据区 + 股市解说直播 · 技术预研，CSS/JS 不动。
+   零依赖（内联 CSS/JS，file:// 可开）；动态图表需 echarts.min.js 放 vendor/ 并 <script src="vendor/echarts.min.js">（相对路径，勿引外网 CDN）。
+   ============================================================ */
+:root{
+  /* 配色锁值 */
+  --ivory:#FBF9F4; --ivory-2:#FFFEFB;
+  --ink:#232220;    --ink-soft:#5b574f;
+  --gold:#B0894A;   --gold-deep:#8A6A33;
+  --hair:rgba(138,106,51,0.22);          /* 发丝金线（分隔/边框） */
+  --up:#C0392B;     --down:#1E7B4F;       /* 红涨绿跌（A 股惯例） */
+  --muted:#9a948a;
+  /* 字体栈·变体B（默认·本地零依赖）：
+     纯系统中文字体栈，file:// 直接可开、无外链。 */
+  --serif:"Songti SC","STSong","Source Han Serif SC",serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  /* 字体栈·变体A（对外品牌站 yangxiaa.cc，需 fonts/ 目录 webfont）：
+     启用时把上面两行换成：
+     --serif:"Playfair Display","Songti SC","STSong",Georgia,serif;
+     --sans:"PingFang SC","Songti SC","Helvetica Neue",sans-serif; */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--ivory); color:var(--ink);
+  font-family:var(--sans); font-weight:400; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.serif{font-family:var(--serif)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px 64px}
+
+/* 顶栏 */
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:26px 32px;max-width:1180px;margin:0 auto}
+.brand{font-family:var(--serif);font-size:20px;letter-spacing:.12em;color:var(--gold-deep)}
+.brand b{color:var(--ink);font-weight:600}
+.crumb{font-size:12.5px;color:var(--muted);letter-spacing:.04em}
+.crumb span{color:var(--gold)}
+.ver{font-size:11.5px;color:var(--muted);border:1px solid var(--hair);
+  padding:1px 8px;border-radius:2px;margin-left:10px;letter-spacing:.06em}
+
+/* regime 条（机制驱动指示，不堆文字） */
+.regime{display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+  padding:14px 24px;margin:0 0 12px;border:1px solid var(--hair);
+  background:var(--ivory-2);border-radius:2px}
+.regime .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 0 4px rgba(176,137,74,.16);display:inline-block;margin-right:9px;vertical-align:middle}
+.regime .lab{font-size:13px;color:var(--ink-soft)}
+.regime .val{font-family:var(--serif);font-size:15px;color:var(--ink);font-weight:600}
+.regime .sep{width:1px;height:22px;background:var(--hair)}
+.regime .meta{font-size:12px;color:var(--muted)}
+
+/* 提示 / banner */
+.banner{font-size:12px;color:var(--gold-deep);background:rgba(176,137,74,.08);
+  border:1px solid var(--hair);padding:8px 16px;margin-bottom:22px;border-radius:2px;letter-spacing:.03em}
+
+/* 标题区 */
+.hero{margin:8px 0 22px}
+.hero h1{font-family:var(--serif);font-size:36px;font-weight:600;letter-spacing:.06em}
+.hero .sub{font-size:13px;color:var(--gold-deep);letter-spacing:.16em;
+  text-transform:uppercase;margin-top:6px}
+.hero .desc{font-size:13px;color:var(--ink-soft);margin-top:12px} /* 不设 max-width，与表格同宽 */
+
+/* 统计条 */
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:18px}
+.stats b{color:var(--ink-soft);font-weight:600}
+
+/* 过滤栏（上下发丝线 + tab + 开关） */
+.filters{display:flex;align-items:center;gap:26px;flex-wrap:wrap;
+  padding:18px 0 16px;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-bottom:8px}
+.fgroup{display:flex;align-items:center;gap:10px}
+.flab{font-size:12px;color:var(--muted);letter-spacing:.05em}
+.tabs{display:flex;gap:4px}
+.tab{font-size:13px;color:var(--ink-soft);padding:6px 14px;cursor:pointer;
+  border-bottom:2px solid transparent;transition:.18s}
+.tab.on{color:var(--gold-deep);border-bottom-color:var(--gold);font-weight:600}
+.toggle{font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:7px;cursor:pointer}
+.sw{width:30px;height:16px;border-radius:9px;background:var(--hair);position:relative;display:inline-block}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;
+  background:var(--ivory);transition:.18s}
+.sw.on{background:var(--gold)}
+.sw.on::after{left:16px;background:#fff}
+
+/* 表格（右对齐数字 + 发丝线 + hover 高亮） */
+table{width:100%;border-collapse:collapse;margin-top:6px}
+thead th{font-size:11.5px;color:var(--muted);font-weight:500;letter-spacing:.04em;
+  text-align:right;padding:12px 14px;border-bottom:1px solid var(--hair);white-space:nowrap}
+thead th:first-child,thead th.l{text-align:left}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--gold-deep)}
+thead th.asc::after{content:" ↑";color:var(--gold);font-size:10px}
+thead th.desc::after{content:" ↓";color:var(--gold);font-size:10px}
+tbody td{font-size:13.5px;text-align:right;padding:14px 14px;
+  border-bottom:1px solid var(--hair);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody td:first-child,tbody td.l{text-align:left}
+tbody tr.row{cursor:pointer}
+tbody tr.row:hover{background:var(--ivory-2)}
+.name{font-weight:600}
+.code{font-size:11.5px;color:var(--muted);margin-left:6px}
+.ind{font-size:12px;color:var(--ink-soft)}
+.up{color:var(--up)} .down{color:var(--down)}
+.map{font-size:12px;color:var(--ink-soft)} .map b{color:var(--gold-deep)}
+.sig{display:inline-block;width:9px;height:9px;border-radius:50%;
+  border:1.5px solid var(--muted);vertical-align:middle}
+.sig.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 0 4px rgba(176,137,74,.15)}
+/* 行内标签须置于数值之前；避免右对齐列错位 */
+.avoid{font-size:10px;color:var(--ink-soft);border:1px solid var(--hair);
+  border-radius:2px;padding:0 4px;margin-right:6px;letter-spacing:.04em;background:rgba(35,34,32,.035)}
+
+/* drill-down 展开 */
+.detail{background:var(--ivory-2)}
+.detail .pad{padding:18px 24px;display:flex;gap:36px;align-items:center;flex-wrap:wrap}
+.spark{flex:0 0 240px}
+.dinfo{font-size:12.5px;color:var(--ink-soft);line-height:1.9}
+.dinfo b{color:var(--ink);font-weight:600}
+.legend{font-size:11.5px;color:var(--muted);margin-top:16px;letter-spacing:.03em;line-height:1.9}
+.foot{margin-top:36px;font-size:11.5px;color:var(--muted);text-align:center;letter-spacing:.04em}
+
+/* 卡片块（克制版：发丝金线 + 留白，不堆重卡片框） */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1px;
+  background:var(--hair);border:1px solid var(--hair);margin:6px 0 26px;border-radius:2px;overflow:hidden}
+.card{background:var(--ivory-2);padding:16px 18px}
+.card .k{font-size:11.5px;color:var(--muted);letter-spacing:.05em}
+.card .v{font-family:var(--serif);font-size:25px;color:var(--ink);font-weight:600;margin:5px 0 3px;
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.card .v small{font-size:12px;color:var(--ink-soft);font-family:var(--sans);font-weight:400;margin-left:3px}
+.card .v.up{color:var(--up)} .card .v.down{color:var(--down)}
+.card .note{font-size:11.5px;color:var(--ink-soft);line-height:1.55}
+.card .bar{height:3px;background:var(--hair);margin-top:11px;border-radius:2px;overflow:hidden}
+.card .bar i{display:block;height:100%;background:var(--gold)}
+
+/* 图表容器 */
+.chart-cap{font-size:12px;color:var(--muted);letter-spacing:.04em;margin:20px 0 5px}
+.chart-cap b{color:var(--gold-deep);font-weight:600}
+.chart{height:340px;border:1px solid var(--hair);background:var(--ivory-2);
+  border-radius:2px;margin:0 0 26px;padding:6px}
+
+/* 分页 */
+.pager{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin:16px 0 6px;font-size:12.5px;flex-wrap:wrap}
+.pager .info{margin-right:auto;color:var(--muted);font-size:11.5px}
+.pager a{color:var(--ink-soft);text-decoration:none;min-width:30px;text-align:center;
+  padding:5px 9px;border:1px solid transparent;border-radius:2px;cursor:pointer;transition:.15s}
+.pager a:hover{border-color:var(--hair);color:var(--gold-deep)}
+.pager a.on{color:#fff;background:var(--gold);border-color:var(--gold);font-weight:600}
+.pager a.disabled{color:var(--muted);cursor:default}
+
+/* 模态弹层（detail 浮层替代方案） */
+.modal-mask{position:fixed;inset:0;background:rgba(35,34,32,.42);display:none;
+  align-items:center;justify-content:center;z-index:50}
+.modal-mask.on{display:flex}
+.modal{background:var(--ivory-2);border:1px solid var(--hair);border-radius:3px;
+  width:min(560px,92vw);padding:22px 26px;box-shadow:0 18px 60px rgba(35,34,32,.28)}
+.modal h3{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ink);letter-spacing:.04em}
+.modal .x{float:right;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;margin-top:1px}
+.modal .x:hover{color:var(--gold-deep)}
+.modal .mbody{display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.modal .mfoot{margin-top:18px;font-size:11.5px;color:var(--muted);text-align:right;letter-spacing:.03em}
+
+/* 双栏对照布局 */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hair);
+  border:1px solid var(--hair);border-radius:2px;overflow:hidden;margin:6px 0 26px}
+.duo>div{background:var(--ivory-2);padding:18px 20px}
+.duo .tag{font-size:11px;color:var(--gold-deep);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.duo h4{font-family:var(--serif);font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px;letter-spacing:.04em}
+.duo p{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-top:10px}
+.duo .kv{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-soft);
+  padding:6px 0;border-bottom:1px solid var(--hair)}
+.duo .kv:last-of-type{border-bottom:none}
+.duo .kv b{color:var(--ink);font-weight:600}
+
+/* 演示按钮（复制后可删） */
+.btn-demo{font-family:var(--sans);font-size:12.5px;color:var(--gold-deep);
+  background:transparent;border:1px solid var(--hair);padding:6px 14px;border-radius:2px;cursor:pointer;margin:6px 0}
+.btn-demo:hover{background:rgba(176,137,74,.08)}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">卧龙 · <b>WOLONG</b></div>
+    <div class="crumb">预研 / 股市解说直播 <span>→</span> 技术预研<span class="ver">V0.1.0 · 2026-10-05</span></div>
+  </div>
+
+  <div class="wrap">
+    <div class="regime">
+      <div><span class="dot"></span><span class="lab">总体裁决</span>&nbsp;<span class="val">可行 · 建议分三期</span></div>
+      <div class="sep"></div>
+      <div><span class="lab">最大难点</span>&nbsp;<span class="val">不是 AI，是「直播流」在 CF 免费版做不了</span></div>
+      <div class="sep"></div>
+      <div><span class="lab">月成本</span>&nbsp;<span class="val">¥0（全部开源 + 免费额度内）</span></div>
+      <div class="sep"></div>
+      <div class="meta">依据 = 2026-10-05 实测：行情源 / CF 官方额度 / TTS 许可</div>
+    </div>
+
+    <div class="banner">本文所有数据源、CF 额度、TTS 许可结论均为 2026-10-05 实地实测与官方文档核对，非推测。生成侧在你自己的 Mac 上跑，CF 只承担静态页 + KV/R2 分发，因此不触碰 Worker 免费版 10ms CPU 硬上限。</div>
+
+    <div class="hero">
+      <h1 class="serif">股市直播解说 · 技术预研</h1>
+      <div class="sub">把盘面、新闻、个股异动，翻译成一个解说员的口吻</div>
+      <div class="desc">目标是做「像球赛一样」的股市直播：多风格解说员可选、可模仿名人口吻、盘中实时生成。但先看清约束——<b>难点不在 AI，而在直播流</b>。Cloudflare 免费版无法承载真正的推流，必须换架构。</div>
+    </div>
+
+    <div class="stats">
+      <b>结论</b> 可行　<b>架构</b> 本地生成 + CF 分发 + 客户端渲染　<b>月成本</b> ¥0　<b>建议</b> 分三期，先做「伪直播」验证解说质量
+    </div>
+
+    <div class="chart-cap">一 · <b>难度总览</b>（分模块，与方案无关）</div>
+    <table>
+      <thead><tr>
+        <th class="l">模块</th>
+        <th class="l">做什么</th>
+        <th class="sortable" data-key="d" data-dir="-1">难度</th>
+        <th class="l">说明</th>
+        <th class="l">成本</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row">
+          <td class="l"><span class="name">行情采集</span><span class="code">已验证</span></td>
+          <td class="l ind">实时快照 + 异动榜 + 快讯</td>
+          <td data-v="1"><b>★☆☆☆☆</b></td>
+          <td class="l">三家源实测全通，本地轮询即可</td>
+          <td class="l">¥0</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>实测结论</b> · 新浪 hq.sinajs.cn（批量最轻，但 GBK 需转码）· 腾讯 qt.gtimg.cn（字段全）· 东财 push2（<b>最干净：UTF-8 JSON，含涨跌幅/量比/换手</b>，实测推荐）<br>
+          异动榜 push2 clist 可按涨幅排序取全市场 5562 只；快讯源财联社/东财 kuaixun 需带 Referer。</div>
+        </div></td></tr>
+
+        <tr class="row">
+          <td class="l"><span class="name">解说引擎</span><span class="code">AI 生成</span></td>
+          <td class="l ind">盘面 → 解说词</td>
+          <td data-v="3"><b>★★★☆☆</b></td>
+          <td class="l">技术不难，难在「不像 AI 念稿」的去AI味调校</td>
+          <td class="l">¥0（自带 LLM 额度）</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>关键认知</b> · 这一步不是「能不能生成」，而是「<b>生成得够不够像球赛解说</b>」。<br>
+          需要三件事：① 事件层判断（该说哪件事）② 叙事层（比喻/悬念/情绪）③ 口语层（短句、语气词、不书面语）。<br>
+          <b>人设 = 提示词工程</b>，做成可热更新的配置文件，多风格共存只是多份 prompt。</div>
+        </div></td></tr>
+
+        <tr class="row">
+          <td class="l"><span class="name">语音合成</span><span class="code">TTS</span></td>
+          <td class="l ind">解说词 → 音频</td>
+          <td data-v="1"><b>★☆☆☆☆</b></td>
+          <td class="l">edge-tts 免费、免注册、中文音色自然</td>
+          <td class="l">¥0</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>edge-tts</b>（PyPI，月下载 1300 万+）· 复用 Edge 朗读引擎，322 音色含中文 5 女 4 男，支持 SSML 调语速/音高 → <b>不同解说员 = 不同音色 + 不同语速</b>。<br>
+          ⚠ 风险：非官方 API，2024 年曾因微软改鉴权而全线失效。<b>建议：生成侧放在本地，接口挂掉只影响你一人，不影响线上观众。</b></div>
+        </div></td></tr>
+
+        <tr class="row">
+          <td class="l"><span class="name">直播流</span><span class="code">最大难点</span></td>
+          <td class="l ind">持续推流</td>
+          <td data-v="5"><b>★★★★★</b></td>
+          <td class="l"><b>真直播在 CF 免费版做不到</b>，须改伪直播</td>
+          <td class="l">¥0（改架构后）</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>为什么做不到</b>（官方 2026-10-05 核对）· CF Workers 免费版 <b>HTTP 请求 CPU 上限 10ms</b>、Cron 触发 CPU 上限也是 10ms，LLM 生成（秒级）+ TTS（秒级）根本放不进去；<br>
+          Workers 免费额度 10 万请求/天；KV 免费写 <b>1000 次/天</b>、读 10 万/天、存储 1GB、value 上限 25MiB。<br>
+          WebSocket 虽支持但连接会被回收，不适合当直播流。</div>
+        </div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="chart-cap">二 · <b>三种直播形态</b>（推荐 A）</div>
+    <table>
+      <thead><tr>
+        <th class="l">方案</th>
+        <th class="l">做法</th>
+        <th class="l">直播感</th>
+        <th class="l">CF 可行性</th>
+        <th class="l">成本</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row">
+          <td class="l"><span class="name">A · 伪直播</span><span class="code">推荐</span></td>
+          <td class="l ind">本地按分钟切片生成 mp3+文本，写 KV/R2；前端按时间戳排队播，字幕逐字上屏</td>
+          <td class="l">高（除延迟外无差别）</td>
+          <td class="l">✅ 完全可行</td>
+          <td class="l">¥0</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>为什么 A 是正解</b> · 体育直播的「实时感」来自<b>解说词跟着比赛走</b>，不是来自视频流本身。<br>
+          你的观众要的是「盘面在动 + 解说在讲」，mp3 切片 + 客户端调度即可满足，延迟 30–60 秒在财经场景完全可接受（不像竞技体育）。<br>
+          <b>零流媒体成本、零服务器推流、可随时切回真直播。</b></div>
+        </div></td></tr>
+
+        <tr class="row">
+          <td class="l"><span class="name">B · 真直播</span><span class="code">成本高</span></td>
+          <td class="l ind">常驻服务器跑 WebSocket/HLS 推流</td>
+          <td class="l">最高</td>
+          <td class="l">❌ 免费版不可行，需付费 Worker 或另买服务器</td>
+          <td class="l">¥30+ /月起</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>硬约束</b> · 免费版 Cron CPU 10ms 是决定性的——即使愿意付 $5 升级 Workers Paid，CPU 上限也只是 30 秒（可调到 5 分钟），且 Cron 频率仍受限。<br>
+          真直播要另找算力：VPS / 家里的常开机器 / 或用第三方直播托管。<b>成本与复杂度都上一个台阶。</b></div>
+        </div></td></tr>
+
+        <tr class="row">
+          <td class="l"><span class="name">C · 纯文字版</span><span class="code">最小验证</span></td>
+          <td class="l ind">只有字幕流，无音频</td>
+          <td class="l">中</td>
+          <td class="l">✅ 极简</td>
+          <td class="l">¥0</td>
+        </tr>
+        <tr class="detail" style="display:none"><td colspan="5"><div class="pad">
+          <div class="dinfo"><b>用途</b> · 第一期拿它验证「解说词到底像不像球赛」——这是整个项目的<b>最大不确定性</b>，用最便宜的方式先证伪或证实。<br>
+          文字版零 TTS、零音频存储，做完不满意直接扔，成本几乎为零。</div>
+        </div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="chart-cap">三 · <b>主站部署可行性</b>（yangxiaa.cc 现有拓扑）</div>
+    <div class="cards">
+      <div class="card"><div class="k">新增成本</div><div class="v">¥0<small> /月</small></div>
+        <div class="note">CF Pages + KV + R2 免费额度内</div><div class="bar"><i style="width:0%"></i></div></div>
+      <div class="card"><div class="k">路由</div><div class="v">/live</div>
+        <div class="note">加一条 path map 映射</div><div class="bar"><i style="width:10%"></i></div></div>
+      <div class="card"><div class="k">KV 用量</div><div class="v">&lt;5%</div>
+        <div class="note">1GB 额度，按日切片远够</div><div class="bar"><i style="width:5%"></i></div></div>
+      <div class="card"><div class="k">流量</div><div class="v">≈0</div>
+        <div class="note">静态页 + 音频，Pages 免带宽费</div><div class="bar"><i style="width:2%"></i></div></div>
+    </div>
+    <div class="kv">
+      <div><span class="k">存储测算</span>　按盘中每 3 分钟一段、每段约 20 秒 mp3（≈160KB）计：<b>240 段/日 ≈ 38MB/日</b> → 约 1.1GB/月，R2 免费 10GB 够放 9 个月，KV（1GB）只放最近 1–2 天，音频一律进 R2、KV 只存索引与文本。</div>
+      <div><span class="k">与你现有体系的关系</span>　完全复用 <b>卧龙台 → 纽扣岛</b> 跨空间部署范式：本地是真源、CF 是部署产物、<code>deploy_live.sh</code> 确定性拼装，不碰线上手改。</div>
+      <div><span class="k">行情数据从哪来</span>　前端可直连东财拉实时快照（无需过你的服务器），省一层；但<b>解说词的生成必须在本地</b>，因为 LLM 调用需要凭证且量大。</div>
+    </div>
+
+    <div class="chart-cap">四 · <b>解说员人设设计</b>（多风格 + 名人模仿）</div>
+    <table>
+      <thead><tr>
+        <th class="l">类型</th>
+        <th class="l">语气特征</th>
+        <th class="l">音色 / 语速</th>
+        <th class="l">实现方式</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row">
+          <td class="l"><span class="name">专业体育解说</span><span class="code">基准款</span></td>
+          <td class="l ind">短句、节奏快、比分式播报、情绪克制</td>
+          <td class="l">男声 · 语速 1.15x</td>
+          <td class="l">prompt + 音色绑定</td>
+        </tr>
+        <tr class="row">
+          <td class="l"><span class="name">脱口秀风格</span><span class="code">段子手</span></td>
+          <td class="l ind">自嘲式吐槽、比喻夸张、有包袱</td>
+          <td class="l">男声 · 1.3x</td>
+          <td class="l">prompt 变体</td>
+        </tr>
+        <tr class="row">
+          <td class="l"><span class="name">情绪化散户</span><span class="code">直播间气氛</span></td>
+          <td class="l ind">语气词多、情绪起伏、像在跟人聊天</td>
+          <td class="l">女声 · 1.2x</td>
+          <td class="l">prompt + SSML 调音高</td>
+        </tr>
+        <tr class="row">
+          <td class="l"><span class="name">名人模仿</span><span class="code">⚠ 需谨慎</span></td>
+          <td class="l ind">「像脱口秀演员/体育明星/影视明星」</td>
+          <td class="l">任意</td>
+          <td class="l">见下方风险</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="regime">
+      <div><span class="dot" style="background:#C0392B"></span><span class="lab">名人模仿的合规红线</span>&nbsp;<span class="val">建议做「气质相似」而非「指名模仿」</span></div>
+      <div class="sep"></div>
+      <div class="meta">具体做法：人设命名为「脱口秀腔」「老司机腔」「热血体育腔」这类<b>风格标签</b>，prompt 里描述语气特征而<b>不写具体人名</b>。既达到你要的效果，又规避「利用他人名义/形象」的法律风险（国内对声音克隆、人物形象权有明确限制）。若确实要指名，得走授权评估——这个我建议先不碰。</div>
+    </div>
+
+    <div class="chart-cap">五 · <b>三期实施路线</b></div>
+    <table>
+      <thead><tr>
+        <th class="l">期</th>
+        <th class="l">交付物</th>
+        <th class="l">验证什么</th>
+        <th class="l">工时估</th>
+      </tr></thead>
+      <tbody>
+        <tr class="row">
+          <td class="l"><span class="name">一期 · 文字版</span><span class="code">最小可行</span></td>
+          <td class="l ind">本地采集 → LLM 出解说词 → 静态页展示（2–3 风格）</td>
+          <td class="l"><b>解说词像不像球赛</b>（最大不确定性）</td>
+          <td data-v="1">半天</td>
+        </tr>
+        <tr class="row">
+          <td class="l"><span class="name">二期 · 加声音</span><span class="code">体验成型</span></td>
+          <td class="l ind">接 edge-tts，按切片播放 + 字幕同步 + 人设切换</td>
+          <td class="l">语音节奏、音色区分度</td>
+          <td data-v="2">1–2 天</td>
+        </tr>
+        <tr class="row">
+          <td class="l"><span class="name">三期 · 上主站</span><span class="code">对外发布</span></td>
+          <td class="l ind">deploy 到 yangxiaa.cc/live + 盘中定时任务 + 进度可见</td>
+          <td class="l">连续跑通一个交易周</td>
+          <td data-v="3">2–3 天</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="chart-cap">六 · <b>风险清单</b>（诚实披露）</div>
+    <div class="kv">
+      <div><span class="k">接口封杀（高）</span>　今天的腾讯 WAF 封 IP 就是前车之鉴。行情源必须做<b>三级兜底</b>（腾讯→东财→新浪），我已有现成实现可直接复用（GS 保鲜那套）。</div>
+      <div><span class="k">TTS 断供（中）</span>　edge-tts 依赖微软非公开接口，可能随时失效。<b>影响面可控</b>：生成在本地，挂了只影响你，且能立刻换成 Piper/Kokoro 等本地开源模型顶上。</div>
+      <div><span class="k">AI 味（高）</span>　LLM 写解说最容易出「书面语 + 客观陈述」，完全不像球赛。<b>这是必须反复调 prompt 的活</b>，也是一期就要验证的核心。建议复用你已沉淀的「杨夏文风」skill 里关于「气口、跳脱、别太顺」的方法论——那套对解说同样成立。</div>
+      <div><span class="k">合规（中）</span>　名人模仿见上方红线；另需注意解说不得构成投资建议，页面固定挂「仅供研究，非投资建议」（沿用卧龙台惯例）。</div>
+      <div><span class="k">时段依赖（中）</span>　只在交易时段有内容，非交易日页面空转。建议补一个「复盘模式」——用当日 GS 本地日线生成收盘复盘解说，把空窗填上。</div>
+    </div>
+
+    <div class="chart-cap">七 · <b>结论与建议</b></div>
+    <div class="regime">
+      <div><span class="dot"></span><span class="lab">可行性</span>&nbsp;<span class="val">成立</span></div>
+      <div class="sep"></div>
+      <div><span class="lab">成本</span>&nbsp;<span class="val">¥0（全开源 + 免费额度）</span></div>
+      <div class="sep"></div>
+      <div><span class="lab">建议</span>&nbsp;<span class="val">先做一期文字版，别急着上音频和推流</span></div>
+    </div>
+    <div class="kv">
+      <div><b>为什么可行</b>　数据源全实测通、GS 本地库已是现成底座、CF 免费额度足够承载分发、edge-tts 免注册可用。四个环节里没有一个是死结。</div>
+      <div><b>为什么建议先做文字版</b>　这个项目<b>唯一的真风险是「解说词好不好听」</b>，而这跟直播流、音频、CF 部署全都无关。先用半天把 prompt 调到「像球赛」，不满意就零成本止损；满意了再往上叠音频和部署，顺序反了会白花好几倍时间。</div>
+      <div><b>架构上唯一要守住的纪律</b>　<b>生成永远在本地，CF 只做分发。</b>一旦把 LLM 调用塞进 CF Worker，就会撞上 10ms CPU 上限，到时既不能真直播、也不能伪直播，只能重写。</div>
+      <div><b>下一步</b>　你拍板后我直接做一期：本地采集 + 三种解说风格 prompt + 一个静态页给你看真实效果。半天内可交付，看完不满意不往下走。</div>
+    </div>
+
+    <div class="foot">卧龙台 · 股市解说直播技术预研 · 2026-10-05 · 数据源与 CF 额度均为当日实测 · 仅供研究，非投资建议</div>
+  </div>
+
+<script src="vendor/echarts.min.js"></script>
+
+<script>
+/* 零依赖交互：表头排序 + drill-down + tab 切换。复制即用，无需改动。 */
+(function(){
+  // —— 表头排序：data-v 裸值、空值沉底、row+detail 成对移动 ——
+  document.querySelectorAll('thead th.sortable').forEach(function(th){
+    th.addEventListener('click', function(){
+      var key = th.dataset.key;
+      var defaultDir = parseInt(th.dataset.dir || '-1', 10); // 该列默认方向
+      var isAsc = th.classList.contains('asc');
+      var dir = isAsc ? -1 : (th.classList.contains('desc') ? defaultDir : defaultDir);
+      // 方向判定：原 asc → 切 desc；原 desc → 回默认；首次 → 默认
+      if (th.classList.contains('asc')) dir = -1 * defaultDir > 0 ? 1 : -1; // 简化：交替
+      dir = isAsc ? (defaultDir>0?-1:1) : (defaultDir>0?1:-1);
+      var table = th.closest('table');
+      var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr.row'));
+      var pairs = rows.map(function(r){
+        return [r, r.nextElementSibling && r.nextElementSibling.classList.contains('detail') ? r.nextElementSibling : null];
+      });
+      pairs.sort(function(a,b){
+        var va = a[0].querySelector('td[data-key="'+key+'"]') ? a[0].querySelector('td[data-key="'+key+'"]').dataset.v : '';
+        var vb = b[0].querySelector('td[data-key="'+key+'"]') ? b[0].querySelector('td[data-key="'+key+'"]').dataset.v : '';
+        var na = parseFloat(va), nb = parseFloat(vb);
+        var emptyA = va===''||va==null||isNaN(na), emptyB = vb===''||vb==null||isNaN(nb);
+        if (emptyA && emptyB) return 0;
+        if (emptyA) return 1;   // 空值恒沉底
+        if (emptyB) return -1;
+        return (na-nb)*dir;
+      });
+      pairs.forEach(function(p){
+        table.querySelector('tbody').appendChild(p[0]);
+        if (p[1]) table.querySelector('tbody').appendChild(p[1]);
+      });
+      // 箭头指示
+      table.querySelectorAll('thead th').forEach(function(h){h.classList.remove('asc','desc')});
+      th.classList.add(dir>0?'asc':'desc');
+    });
+  });
+  // —— drill-down：点击行切换紧随的 detail ——
+  document.querySelectorAll('tbody tr.row').forEach(function(r){
+    r.addEventListener('click', function(){
+      var d = r.nextElementSibling;
+      if (d && d.classList.contains('detail')) d.style.display = (d.style.display==='none'?'':'none');
+    });
+  });
+  // —— tab 切换（纯视觉；数据过滤在调用方按 data-tab 实现） ——
+  document.querySelectorAll('.tabs').forEach(function(group){
+    group.addEventListener('click', function(e){
+      var t = e.target.closest('.tab'); if(!t) return;
+      group.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});
+      t.classList.add('on');
+    });
+  });
+  // —— toggle 开关 ——
+  document.querySelectorAll('.toggle .sw').forEach(function(sw){
+    sw.addEventListener('click', function(e){ e.stopPropagation(); sw.classList.toggle('on'); });
+  });
+
+  // —— 分页：对 .row+.detail 配对切页；翻页后收起展开；不足一页自动隐藏 ——
+  document.querySelectorAll('.pager').forEach(function(pager){
+    var tbl = document.querySelector(pager.dataset.table || 'table');
+    var per = parseInt(pager.dataset.per || '10', 10);
+    if(!tbl) return;
+    var pairs = Array.prototype.slice.call(tbl.querySelectorAll('tbody tr.row')).map(function(r){
+      return [r, r.nextElementSibling && r.nextElementSibling.classList.contains('detail') ? r.nextElementSibling : null];
+    });
+    var pages = Math.max(1, Math.ceil(pairs.length / per));
+    if(pages <= 1){ pager.style.display = 'none'; return; }
+    var cur = 1;
+    function render(){
+      pairs.forEach(function(p, i){
+        var show = Math.floor(i / per) === cur - 1;
+        p[0].style.display = show ? '' : 'none';
+        if(p[1]) p[1].style.display = 'none';
+      });
+      pager.innerHTML = '';
+      var info = document.createElement('span'); info.className = 'info';
+      info.textContent = '共 ' + pairs.length + ' 条 · 第 ' + cur + '/' + pages + ' 页';
+      pager.appendChild(info);
+      var mk = function(label, fn, on, dis){
+        var a = document.createElement('a'); a.textContent = label;
+        if(on) a.className = 'on'; if(dis) a.className = 'disabled';
+        if(!dis) a.addEventListener('click', fn); pager.appendChild(a);
+      };
+      if(cur > 1) mk('‹ 上页', function(){ cur--; render(); }, false, false);
+      for(var p = 1; p <= pages; p++){ (function(pp){ mk(String(pp), function(){ cur = pp; render(); }, pp === cur, false); })(p); }
+      if(cur < pages) mk('下页 ›', function(){ cur++; render(); }, false, false);
+    }
+    render();
+  });
+
+  // ECharts 图表（luxury 主题，需 vendored echarts.min.js，勿引外网 CDN）
+  if (window.echarts) {
+    // 注册 luxury 主题：颜色锁视觉系统 token，跨项目一致、不可私自改 hex
+    if (!echarts.getTheme('luxury')) {
+      echarts.registerTheme('luxury', {
+        color: ['#B0894A', '#8A6A33', '#232220', '#9a948a', '#C0392B', '#1E7B4F'],
+        backgroundColor: 'transparent',
+        textStyle: { fontFamily: '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif', color: '#232220' },
+        title: { textStyle: { color: '#232220', fontFamily: '"Songti SC","STSong",serif' } },
+        categoryAxis: { axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}}, axisLabel:{color:'#9a948a',fontSize:11},
+          splitLine:{lineStyle:{color:'rgba(138,106,51,.08)'}} },
+        valueAxis: { axisLine:{show:false}, axisLabel:{color:'#9a948a',fontSize:11},
+          splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}} },
+        legend: { textStyle:{color:'#5b574f',fontSize:11.5} },
+        tooltip: { backgroundColor:'#FFFEFB', borderColor:'rgba(138,106,51,.3)', borderWidth:1,
+          textStyle:{color:'#232220',fontSize:12} }
+      });
+    }
+    function baseChart(id){
+      var el = document.getElementById(id);
+      if (!el) return null;                 // 无容器则跳过, 避免 init(null) 抛错中断后续交互
+      return echarts.init(el, 'luxury', { renderer:'canvas' });
+    }
+    function opt(chart, option){ if (chart) chart.setOption(option); return chart; }
+
+    // P0-1 净值曲线（策略 vs 基准）
+    var navChart = baseChart('navChart');
+    opt(navChart, {
+      grid: { left: 50, right: 18, top: 26, bottom: 28 },
+      legend: { data:['策略','基准'], right:10, top:0, textStyle:{color:'#5b574f',fontSize:11.5}, itemWidth:14, itemHeight:8 },
+      xAxis: { type:'category', data:['01','02','03','04','05','06','07','08'],
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}}, axisLabel:{color:'#9a948a',fontSize:11} },
+      yAxis: { type:'value', axisLine:{show:false}, splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}}, axisLabel:{color:'#9a948a',fontSize:11} },
+      series: [
+        { name:'策略', type:'line', smooth:true, symbol:'none',
+          data:[1,1.04,1.09,1.07,1.15,1.22,1.19,1.28],
+          lineStyle:{color:'#B0894A',width:2.4}, areaStyle:{color:'rgba(176,137,74,.08)'} },
+        { name:'基准', type:'line', smooth:true, symbol:'none',
+          data:[1,1.01,1.03,1.0,1.05,1.08,1.06,1.1],
+          lineStyle:{color:'#9a948a',width:1.6,type:'dashed'} }
+      ]
+    });
+
+    // P0-2 K线（蜡烛图，红涨绿跌 = A股惯例）
+    var klineChart = baseChart('klineChart');
+    opt(klineChart, {
+      grid:{left:50,right:16,top:16,bottom:28},
+      xAxis:{type:'category',data:['09-08','09-09','09-10','09-11','09-12','09-15','09-16','09-17'],
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#9a948a',fontSize:10}},
+      yAxis:{scale:true,axisLine:{show:false},splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},axisLabel:{color:'#9a948a',fontSize:11}},
+      tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+      series:[{type:'candlestick',
+        data:[[10.2,10.6,10.1,10.7],[10.5,10.4,10.2,10.6],[10.4,10.9,10.3,11.0],[10.8,10.5,10.4,10.9],
+              [10.5,10.8,10.4,10.9],[10.7,11.2,10.6,11.3],[11.1,11.0,10.8,11.4],[10.9,11.4,10.8,11.5]],
+        itemStyle:{color:'#C0392B',color0:'#1E7B4F',borderColor:'#C0392B',borderColor0:'#1E7B4F'}}]
+    });
+
+    // P0-3 雷达（多维评分，如六维信号）
+    var radarChart = baseChart('radarChart');
+    opt(radarChart, {
+      tooltip:{},
+      radar:{ indicator:[{name:'动量',max:1},{name:'成长',max:1},{name:'质量',max:1},{name:'估值',max:1},{name:'波动',max:1},{name:'广度',max:1}],
+        axisName:{color:'#5b574f',fontSize:11}, splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},
+        splitArea:{areaStyle:{color:['rgba(251,249,244,.5)','rgba(255,254,251,.25)']}},
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.2)'}} },
+      series:[{type:'radar',data:[
+        {value:[0.81,0.74,0.66,0.58,0.62,0.41],name:'当前',
+         lineStyle:{color:'#B0894A',width:2},areaStyle:{color:'rgba(176,137,74,.18)'},itemStyle:{color:'#8A6A33'}},
+        {value:[0.6,0.6,0.6,0.6,0.6,0.6],name:'基准',
+         lineStyle:{color:'#9a948a',width:1.4,type:'dashed'},itemStyle:{color:'#9a948a'}}]}]
+    });
+
+    // P0-4 环形（占比，如组合权重）
+    var donutChart = baseChart('donutChart');
+    opt(donutChart, {
+      tooltip:{trigger:'item',formatter:'{b}: {d}%'},
+      legend:{orient:'vertical',left:10,top:'center',textStyle:{color:'#5b574f',fontSize:11.5}},
+      series:[{type:'pie',radius:['45%','70%'],center:['62%','50%'],
+        itemStyle:{borderColor:'#FFFEFB',borderWidth:2},label:{color:'#232220',fontSize:11},
+        data:[
+          {value:32,name:'大盘成长',itemStyle:{color:'#B0894A'}},
+          {value:24,name:'中盘价值',itemStyle:{color:'#8A6A33'}},
+          {value:18,name:'小盘',itemStyle:{color:'#232220'}},
+          {value:14,name:'债券',itemStyle:{color:'#9a948a'}},
+          {value:12,name:'现金',itemStyle:{color:'rgba(138,106,51,.35)'}}]}]
+    });
+
+    // P0-5 条形（排名/横评，如行业 RS 评分）
+    var barChart = baseChart('barChart');
+    opt(barChart, {
+      grid:{left:80,right:28,top:16,bottom:24},
+      tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+      xAxis:{type:'value',axisLine:{show:false},splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},axisLabel:{color:'#9a948a',fontSize:11}},
+      yAxis:{type:'category',data:['半导体','军工','医药','新能源','消费','银行'],
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#5b574f',fontSize:11}},
+      series:[{type:'bar',data:[0.94,0.91,0.88,0.79,0.72,0.55],
+        itemStyle:{color:'#B0894A',borderRadius:[0,3,3,0]},barWidth:'55%',
+        label:{show:true,position:'right',color:'#232220',fontSize:11,formatter:'{c}'}}]
+    });
+
+    // P1-1 散点（PE × 20日涨幅，按涨跌着色）
+    var scatterChart = baseChart('scatterChart');
+    var _up = [], _down = [];
+    [[12,3.2],[18,-1.4],[9,5.1],[25,0.6],[33,-2.8],[15,4.7],[21,-0.9],[7,6.3],[28,1.2],[40,-3.5]]
+      .forEach(function(p){ (p[1]>=0?_up:_down).push(p); });
+    opt(scatterChart, {
+      grid:{left:54,right:18,top:18,bottom:42},
+      tooltip:{trigger:'item',formatter:function(p){return 'PE '+p.value[0]+' · 20日 '+p.value[1]+'%';}},
+      xAxis:{name:'PE',nameTextStyle:{color:'#9a948a'},type:'value',
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#9a948a',fontSize:11},
+        splitLine:{lineStyle:{color:'rgba(138,106,51,.1)'}}},
+      yAxis:{name:'20日%',nameTextStyle:{color:'#9a948a'},type:'value',
+        axisLine:{show:false},axisLabel:{color:'#9a948a',fontSize:11},
+        splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}}},
+      series:[
+        {name:'涨',type:'scatter',data:_up,symbolSize:11,itemStyle:{color:'#C0392B',opacity:.82}},
+        {name:'跌',type:'scatter',data:_down,symbolSize:11,itemStyle:{color:'#1E7B4F',opacity:.82}}
+      ]
+    });
+
+    // P1-2 面积（资金流/规模累计，line + areaStyle）
+    var areaChart = baseChart('areaChart');
+    opt(areaChart, {
+      grid:{left:52,right:18,top:24,bottom:28},
+      tooltip:{trigger:'axis'},
+      legend:{data:['北向净流入','两融余额'],right:10,top:0,textStyle:{color:'#5b574f',fontSize:11.5},itemWidth:14,itemHeight:8},
+      xAxis:{type:'category',data:['1月','2月','3月','4月','5月','6月','7月','8月'],
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#9a948a',fontSize:10}},
+      yAxis:{type:'value',axisLine:{show:false},splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},axisLabel:{color:'#9a948a',fontSize:11}},
+      series:[
+        {name:'北向净流入',type:'line',smooth:true,symbol:'none',data:[120,180,90,210,260,150,300,340],
+          lineStyle:{color:'#B0894A',width:2},areaStyle:{color:'rgba(176,137,74,.12)'}},
+        {name:'两融余额',type:'line',smooth:true,symbol:'none',data:[800,820,790,860,900,880,930,960],
+          lineStyle:{color:'#8A6A33',width:1.8,type:'dashed'}}
+      ]
+    });
+
+    // P1-3 热力（因子相关性矩阵，墨→金→墨色阶）
+    var heatChart = baseChart('heatChart');
+    var _dims=['动量','成长','质量','估值','波动','规模'];
+    var _corr=[[1,.2,-.1,.3,.1,-.2],[.2,1,.4,-.3,-.1,.1],[-.1,.4,1,-.2,.2,.0],[.3,-.3,-.2,1,.1,.4],[.1,-.1,.2,.1,1,-.3],[-.2,.1,.0,.4,-.3,1]];
+    var _hd=[];
+    for(var i=0;i<_dims.length;i++) for(var j=0;j<_dims.length;j++) _hd.push([j,i,_corr[i][j]]);
+    opt(heatChart, {
+      tooltip:{position:'top',formatter:function(p){return _dims[p.value[1]]+' × '+_dims[p.value[0]]+' = '+p.value[2];}},
+      grid:{left:58,right:18,top:18,bottom:54},
+      xAxis:{type:'category',data:_dims,axisLabel:{color:'#5b574f',fontSize:10},splitArea:{show:true}},
+      yAxis:{type:'category',data:_dims,axisLabel:{color:'#5b574f',fontSize:10},splitArea:{show:true}},
+      visualMap:{min:-1,max:1,calculable:true,orient:'horizontal',left:'center',bottom:6,
+        inRange:{color:['#1E7B4F','#FBF9F4','#B0894A','#8A6A33','#232220']},
+        textStyle:{color:'#9a948a',fontSize:10}},
+      series:[{type:'heatmap',data:_hd,
+        label:{show:true,color:'#232220',fontSize:10,formatter:function(p){return p.value[2];}},
+        itemStyle:{borderColor:'#FFFEFB',borderWidth:1}}]
+    });
+
+    // P1-4 瀑布（收益归因，stacked bar：透明基座 + 可见增量）
+    var wfChart = baseChart('waterfallChart');
+    var _labels=['期初','动量','估值','质量','规模','择时','期末'];
+    var _inc=[null,0.06,0.03,0.02,-0.01,0.04,null];
+    var _cum=0,_b=[],_v=[];
+    _labels.forEach(function(l,idx){
+      if(idx===0){_b.push(0);_v.push(1.0);}
+      else if(idx===_labels.length-1){_b.push(0);_v.push(_cum);}
+      else{_b.push(_cum);_v.push(_inc[idx]);_cum+=_inc[idx];}
+    });
+    opt(wfChart, {
+      grid:{left:50,right:18,top:20,bottom:28},
+      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(a){return a[0].name+'：'+a[0].value.toFixed(3);}},
+      xAxis:{type:'category',data:_labels,axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#5b574f',fontSize:10}},
+      yAxis:{type:'value',axisLine:{show:false},splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},axisLabel:{color:'#9a948a',fontSize:11}},
+      series:[
+        {name:'base',type:'bar',stack:'t',itemStyle:{color:'transparent'},data:_b,silent:true},
+        {name:'贡献',type:'bar',stack:'t',barWidth:'52%',
+          data:_v.map(function(v,idx){
+            var c=(idx===0||idx===_labels.length-1)?'#8A6A33':(v>=0?'#B0894A':'#1E7B4F');
+            return {value:v,itemStyle:{color:c,borderRadius:[0,3,3,0]}};
+          }),
+          label:{show:true,position:'top',color:'#232220',fontSize:10,formatter:function(p){return p.value.toFixed(2);}}}
+      ]
+    });
+
+    // P2-1 哑铃（今昔对比，custom renderItem 双圆点 + 连线）
+    var dumbbellChart = baseChart('dumbbellChart');
+    opt(dumbbellChart, {
+      grid:{left:64,right:20,top:20,bottom:30},
+      tooltip:{trigger:'item',formatter:function(p){return p.name;}},
+      xAxis:{type:'category',data:['沪深300','中证500','中证1000','创业板','国证2000'],
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#5b574f',fontSize:10}},
+      yAxis:{type:'value',name:'PE-TTM',nameTextStyle:{color:'#9a948a'},
+        axisLine:{show:false},splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},axisLabel:{color:'#9a948a',fontSize:11}},
+      series:[{type:'custom',
+        renderItem:function(params,api){
+          var xi=api.value(0);
+          var c1=api.coord([xi,api.value(1)]);
+          var c2=api.coord([xi,api.value(2)]);
+          return {type:'group',children:[
+            {type:'line',shape:{x1:c1[0],y1:c1[1],x2:c2[0],y2:c2[1]},style:{stroke:'#8A6A33',lineWidth:2}},
+            {type:'circle',shape:{cx:c1[0],cy:c1[1],r:5},style:{fill:'#9a948a'}},
+            {type:'circle',shape:{cx:c2[0],cy:c2[1],r:5},style:{fill:'#B0894A'}}
+          ]};
+        },
+        encode:{x:0,y:[1,2]},
+        data:[[0,11.2,12.8],[1,16.5,18.9],[2,22.1,25.4],[3,34.0,31.2],[4,28.6,33.7]]
+      }]
+    });
+
+    // P2-2 箱线（因子收益五数概括：min/Q1/中位/Q3/最大）
+    var boxChart = baseChart('boxChart');
+    opt(boxChart, {
+      grid:{left:50,right:18,top:20,bottom:30},
+      tooltip:{trigger:'item'},
+      xAxis:{type:'category',data:['动量','成长','质量','估值','波动','规模'],
+        axisLine:{lineStyle:{color:'rgba(138,106,51,.3)'}},axisLabel:{color:'#5b574f',fontSize:10}},
+      yAxis:{type:'value',axisLine:{show:false},splitLine:{lineStyle:{color:'rgba(138,106,51,.15)'}},axisLabel:{color:'#9a948a',fontSize:11}},
+      series:[{type:'boxplot',
+        itemStyle:{color:'rgba(176,137,74,.15)',borderColor:'#8A6A33'},
+        data:[[0.04,0.09,0.14,0.21,0.33],[0.02,0.07,0.11,0.18,0.27],
+              [-0.03,0.04,0.09,0.15,0.22],[0.05,0.10,0.16,0.22,0.30],
+              [-0.06,0.01,0.05,0.11,0.19],[0.03,0.08,0.12,0.17,0.24]]}]
+    });
+
+    // P2-3 仪表盘（仓位 / 风险度）
+    var gaugeChart = baseChart('gaugeChart');
+    opt(gaugeChart, {
+      series:[{type:'gauge',radius:'78%',center:['50%','58%'],
+        startAngle:210,endAngle:-30,min:0,max:100,
+        progress:{show:true,width:10,itemStyle:{color:'#B0894A'}},
+        axisLine:{lineStyle:{width:10,color:[[1,'rgba(138,106,51,.18)']]}},
+        axisTick:{show:false},splitLine:{length:10,lineStyle:{color:'rgba(138,106,51,.3)'}},
+        axisLabel:{color:'#9a948a',fontSize:9,distance:12},pointer:{itemStyle:{color:'#8A6A33'}},
+        detail:{valueAnimation:true,formatter:'{value}%',color:'#232220',fontSize:18,offsetCenter:[0,'52%']},
+        title:{show:true,offsetCenter:[0,'78%'],color:'#5b574f',fontSize:11},
+        data:[{value:65,name:'当前仓位'}]}]
+    });
+
+    var _charts = [navChart, klineChart, radarChart, donutChart, barChart, scatterChart, areaChart, heatChart, wfChart, dumbbellChart, boxChart, gaugeChart];
+    window.addEventListener('resize', function(){ _charts.forEach(function(c){ c && c.resize(); }); });
+  }
+
+  // —— 模态弹层：data-open 打开对应 id 遮罩；点击遮罩/.x 关闭 ——
+  document.querySelectorAll('[data-open]').forEach(function(b){
+    b.addEventListener('click', function(){ var m = document.getElementById(b.dataset.open); if(m) m.classList.add('on'); });
+  });
+  document.querySelectorAll('.modal-mask').forEach(function(m){
+    m.addEventListener('click', function(e){
+      if(e.target === m || e.target.hasAttribute('data-close') || e.target.classList.contains('x')) m.classList.remove('on');
+    });
+  });
+})();
+</script>
+</body>
+</html>

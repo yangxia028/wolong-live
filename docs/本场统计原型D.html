@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本场统计 · 原型 D（待审 v2）</title>
+<style>
+:root{
+  --ink:#232220; --ink-soft:#4A4843; --gold:#B0894A; --gold-deep:#8A6A33;
+  --ivory:#FBF9F4; --ivory-2:#FCFBF7; --line:#E7E2D7; --muted:#6E6C66; --na:#B4B2A9;
+  --up:#B23A2E;      /* 涨 / 偏多（红） */
+  --down:#3C7D4E;    /* 跌 / 偏空（绿） */
+  --slot:#F1EFE8;
+  --serif:"Songti SC","STSong",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ivory);color:var(--ink);font-family:var(--sans);
+  padding:30px 22px 56px;line-height:1.4}
+.head{max-width:760px;margin:0 auto 20px}
+h1{font-family:var(--serif);font-weight:500;font-size:21px;margin:0 0 5px;letter-spacing:1px}
+.sub{color:var(--muted);font-size:12.5px;margin:0;line-height:1.7}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.sw-up{background:var(--up)} .sw-down{background:var(--down)} .sw-na{background:var(--slot);border:.5px solid var(--na)}
+
+.grid{max-width:760px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:#fff;border:.5px solid var(--line);border-radius:12px;padding:14px 16px 16px;
+  box-shadow:0 1px 0 rgba(138,106,51,.04)}
+.ch{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.mkt{font-family:var(--serif);font-size:15px;font-weight:600;letter-spacing:.04em}
+.time{margin-left:auto;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ===== 2×2 维度瓦片（替代原滑动条） ===== */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+  border:.5px solid var(--line);border-radius:8px;overflow:hidden;margin-top:8px}
+.tile{background:var(--ivory-2);padding:9px 11px}
+.t-k{font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.tag{font-size:9px;letter-spacing:.05em;padding:1px 6px;border-radius:7px;white-space:nowrap}
+.tag.real{background:rgba(60,125,78,.12);color:var(--down)}
+.tag.proxy{background:rgba(176,137,74,.14);color:var(--gold-deep)}
+.tag.na{background:var(--slot);color:var(--na)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.bull{background:var(--up)} .dot.bear{background:var(--down)} .dot.flat{background:var(--na)}
+.t-v{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin:4px 0 1px;letter-spacing:.01em;line-height:1}
+.t-v .arw{font-size:13px;font-weight:700;margin-left:2px}
+.c-up{color:var(--up)} .c-down{color:var(--down)} .c-na{color:var(--na);font-size:16px}
+.t-v2{font-size:14px;font-weight:500;margin:5px 0 1px;font-variant-numeric:tabular-nums}
+.t-v2 b{font-size:17px}
+.t-sub{font-size:10.5px;color:var(--ink-soft);line-height:1.5;margin-top:2px}
+/* 广度：红涨/绿跌 组成条（直读占比，非滑动条） */
+.breadth{height:8px;border-radius:4px;overflow:hidden;display:flex;margin:6px 0 3px;background:var(--slot)}
+.breadth .u{background:var(--up)} .breadth .d{background:var(--down)}
+.breadth .n{background:var(--slot);width:100%}
+
+/* ===== 日内走势 K线（金色涨 / 灰绿跌，含昨收虚线；v2 高度收窄） ===== */
+.kl{margin-top:10px;padding-top:9px;border-top:.5px solid var(--line)}
+.kl-lab{font-size:11px;color:var(--muted);margin-bottom:3px}
+.kl-svg{width:100%;height:70px;display:block}
+.kl-cap{font-size:10.5px;color:var(--ink-soft);margin-top:5px;text-align:right;font-variant-numeric:tabular-nums}
+
+.foot{max-width:760px;margin:22px auto 0;font-size:11px;color:var(--muted);line-height:1.75;
+  padding-top:13px;border-top:.5px solid var(--line)}
+.foot b{color:var(--ink);font-weight:500}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>本场统计 · 原型 D（待审 v2）</h1>
+  <p class="sub">相对原型 C / 当前线上版的两处改动：① 前四项（强度·广度·情绪·外围）由「竖排 4 条 + 滑动条」改为 <b>2×2 紧凑瓦片</b>，省高度；② 滑动条改为 <b>数字直读</b>（红=涨/偏多，绿=跌/偏空），广度用红绿组成条。K线保留但高度收窄。v2：删强度指数小字（走马灯已有）、K线 92→70px、补港股卡。</p>
+  <div class="legend">
+    <span><i class="sw-up"></i>涨 / 偏多（红）</span>
+    <span><i class="sw-down"></i>跌 / 偏空（绿）</span>
+    <span><i class="sw-na"></i>待接入 / N/A</span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- ============ A股（数据最全） ============ -->
+  <div class="card">
+    <div class="ch"><span class="mkt">A股</span><span class="time">数据 16:16</span></div>
+    <div class="tiles">
+      <div class="tile">
+        <div class="t-k">强度 <span class="dot bear"></span></div>
+        <div class="t-v c-down">−1.42%<span class="arw">▼</span></div>
+      </div>
+      <div class="tile">
+        <div class="t-k">广度 <span class="tag real">真实</span></div>
+        <div class="breadth"><i class="u" style="width:24%"></i><i class="d" style="width:76%"></i></div>
+        <div class="t-sub">涨 1200 / 跌 3800 · 多方占 24%</div>
+      </div>
+      <div class="tile">
+        <div class="t-k">情绪 <span class="dot bull"></span></div>
+        <div class="t-v2">涨停 <b class="c-up">45</b> / 跌停 <b class="c-down">3</b></div>
+        <div class="t-sub">涨停潮 · 偏热</div>
+      </div>
+      <div class="tile">
+        <div class="t-k">外围 <span class="dot bear"></span></div>
+        <div class="t-v c-down">−0.40%<span class="arw">▼</span></div>
+        <div class="t-sub">剔除 A 股后全球股指均值</div>
+      </div>
+    </div>
+    <div class="kl">
+      <div class="kl-lab">日内走势（5 分钟 K 线）</div>
+      <div class="kl-svg" id="kl-cn"></div>
+      <div class="kl-cap">上证 3,817.09 · −0.65%（昨收 3,842.11）</div>
+    </div>
+  </div>
+
+  <!-- ============ 港股（同模板：广度近似、情绪 N/A） ============ -->
+  <div class="card">
+    <div class="ch"><span class="mkt">港股</span><span class="time">数据 16:16</span></div>
+    <div class="tiles">
+      <div class="tile">
+        <div class="t-k">强度 <span class="dot bear"></span></div>
+        <div class="t-v c-down">−0.85%<span class="arw">▼</span></div>
+      </div>
+      <div class="tile">
+        <div class="t-k">广度 <span class="tag proxy">近似</span></div>
+        <div class="breadth"><i class="u" style="width:27%"></i><i class="d" style="width:73%"></i></div>
+        <div class="t-sub">个股 涨 4 / 跌 11（近似）</div>
+      </div>
+      <div class="tile">
+        <div class="t-k">情绪 <span class="tag na">N/A</span></div>
+        <div class="t-v c-na">—</div>
+        <div class="t-sub">港股无涨跌停数据</div>
+      </div>
+      <div class="tile">
+        <div class="t-k">外围 <span class="dot bear"></span></div>
+        <div class="t-v c-down">−0.35%<span class="arw">▼</span></div>
+        <div class="t-sub">剔除港股后全球股指均值</div>
+      </div>
+    </div>
+    <div class="kl">
+      <div class="kl-lab">日内走势（5 分钟 K 线）</div>
+      <div class="kl-svg" id="kl-hk"></div>
+      <div class="kl-cap">恒指 25,012.5 · −0.85%（昨收 25,210.0）</div>
+    </div>
+  </div>
+
+  <!-- ============ 美股（VIX 情绪 / 广度待接入） ============ -->
+  <div class="card">
+    <div class="ch"><span class="mkt">美股</span><span class="time">数据 16:16</span></div>
+    <div class="tiles">
+      <div class="tile">
+        <div class="t-k">强度 <span class="dot bear"></span></div>
+        <div class="t-v c-down">−0.43%<span class="arw">▼</span></div>
+      </div>
+      <div class="tile">
+        <div class="t-k">广度 <span class="tag na">待接入</span></div>
+        <div class="breadth"><i class="n"></i></div>
+        <div class="t-sub">streetstats 实测为 SPA，另寻源</div>
+      </div>
+      <div class="tile">
+        <div class="t-k">情绪 <span class="dot bull"></span></div>
+        <div class="t-v c-down">VIX 15.08</div>
+        <div class="t-sub">252 日分位 11% · 低位偏多</div>
+      </div>
+      <div class="tile">
+        <div class="t-k">外围 <span class="dot bull"></span></div>
+        <div class="t-v c-up">+0.22%<span class="arw">▲</span></div>
+        <div class="t-sub">非美全球股指（日经 / 富时）</div>
+      </div>
+    </div>
+    <div class="kl">
+      <div class="kl-lab">日内走势（5 分钟 K 线）</div>
+      <div class="kl-svg" id="kl-us"></div>
+      <div class="kl-cap">道指 51,179.87 · −0.66%（昨收 51,513.13）</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  <b>原型 D v2 改动说明（相对当前线上 v1.9.22）：</b><br>
+  · <b>2×2 瓦片</b>：前四项排成两行两列，卡片整体高度显著下降（约 260px vs 原 ~400px）。<br>
+  · <b>数字直读替代滑动条</b>：强度 / 外围 直接显示百分比 + ▲▼ 箭头，红涨绿跌；情绪 A 股显示涨停/跌停数，美股显示 VIX 数值 + 分位；颜色即方向，无需解读滑动条位置。<br>
+  · <b>广度组成条</b>：用红（涨）绿（跌）两段比例条直观显示多空占比，下方标注涨跌家数，比居中发散滑动条更可读；港股广度标「近似」、美股标「待接入」。<br>
+  · <b>v2 调整</b>：① 删强度瓦片指数说明小字（导播台走马灯已含）；② K线图高度 92→70px 收窄；③ 补港股卡（同模板，情绪 N/A）。<br>
+  · <b>K线保留</b>：沿用金色=涨 / 灰绿=跌蜡烛图（含昨收虚线）。<br>
+  A股 / 港股 / 美股 三卡由右侧 tab 切换，自动定位逻辑不变。<b>本原型为静态示例，落地时由实时 snapshot 计算。</b>
+</div>
+
+<script>
+/* 简约蜡烛图：金(涨)/灰绿(跌)，含昨收虚线 —— 复用线上 klHtml 画法 */
+function kl(id, candles, prev){
+  var el=document.getElementById(id); if(!el||!candles.length) return;
+  var W=240,H=70,pl=8,pr=8,pt=6,pb=8;
+  var all=[]; candles.forEach(function(c){all.push(c.o,c.h,c.l,c.c);}); all.push(prev);
+  var mn=Math.min.apply(null,all), mx=Math.max.apply(null,all), rng=(mx-mn)||1;
+  var iw=(W-pl-pr)/candles.length, bw=Math.max(1.4,iw*0.62);
+  function Y(v){ return pt + (mx-v)/rng*(H-pt-pb); }
+  function X(i){ return pl + iw*(i+0.5); }
+  var s='<svg viewBox="0 0 '+W+' '+H+'" class="kl-svg" preserveAspectRatio="none">';
+  var yp=Y(prev); s+='<line x1="0" y1="'+yp.toFixed(1)+'" x2="'+W+'" y2="'+yp.toFixed(1)+'" stroke="#8A6A33" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>';
+  candles.forEach(function(c,i){
+    var up=c.c>=c.o, col= up? '#B0894A' : '#6F8C72';
+    var xc=X(i), yo=Y(c.o), yc=Y(c.c), yh=Y(c.h), yl=Y(c.l);
+    var top=Math.min(yo,yc), hgt=Math.max(1,Math.abs(yo-yc));
+    s+='<line x1="'+xc.toFixed(1)+'" y1="'+yh.toFixed(1)+'" x2="'+xc.toFixed(1)+'" y2="'+yl.toFixed(1)+'" stroke="'+col+'" stroke-width="1"/>';
+    s+='<rect x="'+(xc-bw/2).toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hgt.toFixed(1)+'" fill="'+col+'"/>';
+  });
+  s+='</svg>';
+  el.innerHTML=s;
+}
+/* 示例数据（落地时由 compute_market_stats 的 kl.candles 替换） */
+function gen(n,o0,vol){
+  var c=o0,out=[]; for(var i=0;i<n;i++){
+    var o=c, drift=(Math.sin(i/4)*0.4 + (Math.random()-0.5)*0.8);
+    var cl=o+drift, hi=Math.max(o,cl)+Math.random()*1.2, lo=Math.min(o,cl)-Math.random()*1.2;
+    out.push({o:o,h:hi,l:lo,c:cl}); c=cl;
+  } return out;
+}
+var cn=gen(48,3840); cn[cn.length-1]={o:3820,h:3826,l:3810,c:3817.09};
+var hk=gen(67,25200); hk[hk.length-1]={o:25150,h:25180,l:24950,c:25012.5};
+var us=gen(79,51450); us[us.length-1]={o:51550,h:51560,l:51100,c:51179.87};
+kl('kl-cn',cn,3842.11);
+kl('kl-hk',hk,25210.0);
+kl('kl-us',us,51513.13);
+</script>
+
+</body>
+</html>

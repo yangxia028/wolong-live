@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__ · 卧龙台</title>
+<style>
+/* ============================================================
+   卧龙台视觉设计系统 · 金墨象牙白 / Luxury Editorial
+   配色 token 全台锁定（技术资源手册 §9.3.1），任何项目不得私自改 hex。
+   V1.3.0：导播台改浅色（去黑底）、只留真实 KPI、去说明文字、加北京时间、
+           解说流单人播出、资讯新→旧 + 24h、删比分模块。
+   ============================================================ */
+:root{
+  --ivory:#FBF9F4; --ivory-2:#FFFEFB;
+  --ink:#232220;    --ink-soft:#5b574f;
+  --gold:#B0894A;   --gold-deep:#8A6A33;
+  --hair:rgba(138,106,51,0.22);
+  --up:#C0392B;     --down:#1E7B4F;
+  --muted:#9a948a;   --slot:#F1EFE8;  --na:#B4B2A9;
+  --serif:"Songti SC","STSong","Source Han Serif SC",serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ivory); color:var(--ink);
+  font-family:var(--sans); font-weight:400; line-height:1.6;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding:0 32px 44px}
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:20px 32px;max-width:1320px;margin:0 auto}
+.brand{font-family:var(--serif);font-size:20px;letter-spacing:.12em;color:var(--gold-deep)}
+.brand b{color:var(--ink);font-weight:600}
+.crumb{font-size:12.5px;color:var(--muted);letter-spacing:.04em}
+.crumb span{color:var(--gold)}
+.ver{font-size:11.5px;color:var(--muted);border:1px solid var(--hair);
+  padding:1px 8px;border-radius:2px;margin-left:10px;letter-spacing:.06em}
+/* V1.9.19：桌面通知开关（首次需用户点一下授权，Chrome 才弹权限框） */
+.noti-btn{font-size:11.5px;color:var(--ink-soft);border:1px solid var(--hair);
+  padding:3px 11px;border-radius:2px;margin-left:12px;letter-spacing:.04em;cursor:pointer;
+  background:var(--ivory-2);font-family:var(--sans);transition:.18s;white-space:nowrap}
+.noti-btn:hover{border-color:var(--gold);color:var(--gold-deep)}
+.noti-btn.on{border-color:rgba(30,123,79,.45);color:var(--down);cursor:default}
+.noti-btn:disabled{opacity:.72;cursor:default}
+
+/* ===== 走马灯 ===== */
+.ticker{border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);
+  background:var(--ivory-2);overflow:hidden;padding:8px 0;margin-bottom:18px}
+.ticker-hd{font-size:10.5px;color:var(--muted);letter-spacing:.16em;text-align:center;
+  text-transform:uppercase;margin-bottom:5px}
+.ticker-track{display:flex;gap:32px;width:max-content;
+  animation:slide 42s linear infinite;white-space:nowrap}
+.ticker:hover .ticker-track{animation-play-state:paused}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tk{display:inline-flex;align-items:baseline;gap:7px;font-size:12.5px}
+.tk .n{color:var(--ink-soft)}
+.tk .p{font-family:var(--serif);font-size:14px;color:var(--ink);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.tk .c{font-size:12px;font-variant-numeric:tabular-nums;font-weight:600}
+.tk .c.up{color:var(--up)} .tk .c.down{color:var(--down)}
+
+/* ===== 导播台（浅色：象牙白底 + 发丝金线，与全页同一套色，不再黑底） =====
+   V1.5.0：左右分栏（状态区 / 时段图）；时段图独占整行宽度。
+   V1.5.2：状态区恢复原版布局——ON AIR 铭牌在上，「市场+状态」居中一行，
+           「北京时间 / 在线观众」左右并排（同一 label 行 + 同一数值行），
+           右侧改用竖向发丝金线收口。 */
+.dock{border:1px solid var(--hair);background:var(--ivory-2);border-radius:2px;
+  padding:16px 24px;margin-bottom:20px}
+.dock-in{display:grid;grid-template-columns:248px 1fr;gap:26px;align-items:center}
+/* 状态栏（原版布局）：ON AIR 铭牌 → 市场+状态 → 时间/观众 左右两列 */
+.dock-left{display:flex;flex-direction:column;align-items:flex-start;gap:9px;
+  padding-right:26px;border-right:1px solid rgba(176,137,74,.30)}
+/* ON AIR 铭牌：开市中金色呼吸，休市灰暗熄灯 */
+.dock-onair{display:inline-flex;align-items:center;font-size:9.5px;font-weight:600;
+  letter-spacing:.16em;color:#fff;background:var(--gold);border-radius:2px;
+  padding:3px 8px;line-height:1.25;animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(176,137,74,.55)}
+  50%{box-shadow:0 0 0 7px rgba(176,137,74,0)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.32}}
+.dock-off .dock-onair{background:#cdc7bd;color:#f7f5f1;box-shadow:none;animation:none}
+.dock-live{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:0 0 auto;
+  animation:breathe 2.4s ease-in-out infinite}
+.dock-off .dock-live{background:#cdc7bd;animation:none;opacity:.5}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.28}}
+.dock-cell .k{font-size:10.5px;color:var(--muted);letter-spacing:.1em;white-space:nowrap}
+/* 时段标题行：左「交易时段」·右「刷新节奏」。
+   ⚠️ V1.7.0 曾把刷新读数挂在 dock-pairs 当第三列 → 撑爆 248px 左栏、压到时段图上（显示bug）。
+      V1.8.0 移到时段图标题行右侧：左栏恢复原版两项，读数也不再与任何元素重叠。 */
+.dock-krow{display:flex;justify-content:space-between;align-items:baseline;gap:18px}
+.k-cad{color:var(--gold-deep);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.dock-cell .v{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--ink);
+  letter-spacing:.05em;line-height:1.35;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dock-cell .v small{font-size:12px;font-family:var(--sans);font-weight:400;
+  color:var(--ink-soft);margin-left:7px;letter-spacing:.03em}
+.dock-cell .v .u{font-size:11.5px;color:var(--gold-deep);font-family:var(--sans);
+  font-weight:400;margin-left:3px}
+.dock-sess{display:flex;align-items:center;gap:9px}
+.dock-sess .v{font-family:var(--serif);font-size:21px;font-weight:600;color:var(--ink);
+  letter-spacing:.05em;line-height:1.3;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dock-sess .v small{font-size:12px;font-family:var(--sans);font-weight:400;
+  color:var(--ink-soft);margin-left:7px;letter-spacing:.03em}
+.dock-off .dock-sess .v{color:var(--ink-soft)}
+/* 时间 / 观众 左右并排（同一个 label 行 + 同一个数值行）；
+   flex-wrap 是安全网：将来再加列会换行，不会溢出压到右侧时段图 */
+.dock-pairs{display:flex;gap:38px;align-items:flex-start;flex-wrap:wrap;row-gap:8px}
+.dock-pair .k{font-size:10.5px;color:var(--muted);letter-spacing:.1em;white-space:nowrap}
+.dock-pair .v{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ink);
+  letter-spacing:.05em;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dock-pair .v small{font-size:11px;font-family:var(--sans);font-weight:400;
+  color:var(--ink-soft);margin-left:6px;letter-spacing:.03em}
+.dock-pair .v .u{font-size:11.5px;color:var(--gold-deep);font-family:var(--sans);
+  font-weight:400;margin-left:3px}
+.dock-right{width:100%}
+
+/* ===== 交易时段时间轴（Forex session chart 式：三轨重叠一眼可见） =====
+   V1.5.1：状态栏改回上下紧凑竖排；开市时段去大红、改用金（与全页金墨一套）；
+           ON AIR 呼吸灯——开市中亮金呼吸、休市熄灯（灰暗无光）。 */
+.tl{width:100%}
+.tl-body{display:flex;align-items:stretch;gap:10px}
+.tl-labs{display:flex;flex-direction:column;flex:0 0 auto}
+.tl-lab{height:24px;line-height:24px;font-size:12px;font-weight:600;
+  color:var(--ink-soft);white-space:nowrap}
+.tl-lab.on{color:var(--gold-deep)}
+.tl-tracks{position:relative;flex:1;display:flex;flex-direction:column;margin-bottom:18px}
+.tl-track{position:relative;height:14px;margin:5px 0;border:1px solid var(--hair);
+  background:var(--ivory);border-radius:2px;overflow:hidden}
+.tl-seg{position:absolute;top:0;bottom:0;border-radius:1px}
+.tl-seg.open{background:var(--gold);opacity:.92}
+.tl-seg.pre,.tl-seg.post{background:var(--gold-deep);opacity:.34}
+.tl-seg.closed{background:var(--muted);opacity:.2}
+/* 今日休市的市场（时钟说该开、行情源报价停在上一交易日）：整轨压暗 + 标签压暗，
+   表示"这条时段表今天没有生效"，不假装在交易（V1.8.0） */
+.tl-track.hol .tl-seg{opacity:.22}
+.tl-tick{position:absolute;top:2px;bottom:2px;width:1px;background:var(--hair);opacity:.7}
+.tl-now{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--gold-deep);
+  box-shadow:0 0 0 1px rgba(176,137,74,.3);z-index:4;left:0}
+.tl-sts{display:flex;flex-direction:column;flex:0 0 auto}
+.tl-st{height:24px;line-height:24px;font-size:11px;text-align:right;
+  color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.tl-st.on{color:var(--gold-deep);font-weight:600}
+.tl-axis{position:absolute;left:0;right:0;bottom:-15px;display:flex;
+  justify-content:space-between;font-size:10px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+@media (max-width:820px){ .dock-in{grid-template-columns:1fr} .dock-left{flex-wrap:wrap} }
+
+/* ===== 主区 ===== */
+.stage{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:stretch}
+/* V1.9.36：左栏 = flex 列，解说流（.stream）用 flex:1 吸收高度差 → 两栏底缘对齐、
+   左栏不留空白。见 .stream 注释里的来龙去脉。 */
+.stage-left{display:flex;flex-direction:column;min-width:0}
+/* 头部/主播卡/页脚都不许被压缩（只有 .stream 吸收高度差） */
+.stage-left>.panel-hd,.stage-left>.anchors,.stage-left>.stream-foot{flex:0 0 auto}
+@media (max-width:1040px){.stage{grid-template-columns:1fr}
+  /* 单列时左栏不再是"两栏等高"的参与者，stream 回到固定高度 */
+  .stream{flex:0 0 auto;height:600px}}
+.panel{border:1px solid var(--hair);background:var(--ivory-2);border-radius:2px}
+.panel-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 20px;border-bottom:1px solid var(--hair)}
+.panel-hd .t{font-family:var(--serif);font-size:15px;font-weight:600;letter-spacing:.05em}
+.panel-hd .m{font-size:10.5px;color:var(--gold-deep);letter-spacing:.12em;text-transform:uppercase}
+.panel-hd .sp{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tabs{display:flex;gap:2px}
+.tab{font-size:12.5px;color:var(--ink-soft);padding:5px 12px;cursor:pointer;
+  border-bottom:2px solid transparent;transition:.18s;white-space:nowrap}
+.tab.on{color:var(--gold-deep);border-bottom-color:var(--gold);font-weight:600}
+/* ===== 解说员卡 ===== */
+/* 主播位布局：V1.8.6 由「三列网格」改为「自适应横向卡片流」。
+   V1.8.7 再收一层：卡片内部改成**单行 flex** —— 头像 → 姓名 → ON AIR → 角色·简介。
+   师傅原话：「ON AIR 应该放在姓名后面，介绍不用单起一行，跟着后面就可以，
+             不然右边一大块空白」。
+   原写法把 ON AIR 用 position:absolute 钉在右上角、简介另起一行，
+   于是姓名右侧到 ON AIR 之间空出一大块，卡片也被撑成两行高。 */
+.anchors{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:1px;background:var(--hair);border-bottom:1px solid var(--hair)}
+@media (max-width:640px){.anchors{grid-template-columns:1fr}}
+.anchor{display:flex;align-items:center;gap:10px;background:var(--ivory-2);
+  padding:9px 16px;cursor:pointer;transition:.2s;position:relative;min-width:0}
+.anchor:hover{background:#fff}
+.anchor.on{background:rgba(176,137,74,.09)}
+.anchor.on::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2.5px;background:var(--gold)}
+.avatar{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;
+  justify-content:center;font-family:var(--serif);font-size:14.5px;font-weight:600;
+  background:var(--ink);color:var(--gold)}
+.anchor.on .avatar{background:var(--gold);color:#fff}
+.anchor-nm{flex:0 0 auto;font-family:var(--serif);font-size:14.5px;font-weight:600;
+  letter-spacing:.04em;line-height:1.3}
+/* 角色 + 简介跟着姓名同排（V1.8.7）：不再另起一行，超长省略 */
+.anchor-one{flex:0 1 auto;min-width:0;font-size:12px;color:var(--ink-soft);
+  line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anchor-one .anchor-rl{font-size:10.5px;color:var(--gold-deep);letter-spacing:.08em}
+.anchor-one .anchor-rl::after{content:"·";margin:0 7px;color:var(--gold);opacity:.6}
+/* ON AIR 徽标（V1.8.7 由"绝对定位右上角"改为**跟在姓名后面**的行内徽标）：
+   只有在播的那位显示。 */
+.onair{flex:0 0 auto;font-size:9px;letter-spacing:.14em;
+  color:var(--up);border:1px solid rgba(192,57,43,.4);border-radius:2px;padding:1px 5px;
+  display:none;align-items:center;gap:4px}
+.anchor.on .onair{display:inline-flex}
+.onair::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--up);
+  animation:pulse 1.5s ease-in-out infinite}
+/* V1.9.10：下一轮正在采集/生成时，徽标切成「搜索中」——金色、慢呼吸，
+   与「ON AIR」的红色快呼吸区分开（师傅要求）。 */
+.onair.searching{color:var(--gold-deep);border-color:rgba(176,137,74,.45)}
+.onair.searching::before{background:var(--gold);animation:pulse 2.4s ease-in-out infinite}
+
+/* ===== 解说流（最新在上，仅当前解说员在播） ===== */
+/* ⚠️ V1.9.36 布局修复第二版（师傅 2026-10-09 反馈：「你把资讯台的框拉的太长，解说台
+   下面是空白的，这种下边缘对齐是没有意义的」）。
+   V1.9.35 的做法是让资讯台 flex:1 去吸收高度差 —— 矫枉过正：右栏内容（统计卡 + 全部
+   资讯）把 grid 行高撑起来，左栏被拉伸、解说流下方反而空出一大块。
+   本版改成「高度由内容定 + 底缘对齐 + 资讯台最多 5 条」：
+   · 左栏解说台 = flex 列，stream 用 flex:1（flex-basis:0 → **不参与内容撑高**，
+     只在行高确定后吸收剩余空间）→ 左栏不会再有空白，解说流还能多显示几条；
+   · 右栏资讯台 = 自然高度，列表上限 5 条（由 JS 量首条高度算出）；
+   · 行高取两栏内容的高者 → 天然底缘对齐。
+   窄屏（单列，≤1040px）时 stream 回到固定 600px，见下方 media 查询。 */
+.stream{position:relative;flex:1 1 0;min-height:420px;overflow-y:auto;padding:16px 22px}
+.stream::-webkit-scrollbar{width:5px}
+.stream::-webkit-scrollbar-thumb{background:var(--hair);border-radius:3px}
+/* V1.8.7：flex + flex-wrap 换成**两列 grid**。原写法里标签行是 `flex:1 1 100%`，
+   另起一行时从容器最左开始 —— 也就是与「时间」对齐。师傅指出：
+   「后缀标签没有跟正文左对齐，跑到跟时间对齐了」。grid 把时间钉在第 1 列，
+   正文与标签行同占第 2 列，天然左对齐，且时间列宽随内容自适应。 */
+.seg{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;
+  align-items:baseline;padding:11px 0 13px;
+  border-bottom:1px solid rgba(138,106,51,.10)}
+.seg:first-child{border-top:1px solid rgba(138,106,51,.10)}
+.seg.fresh{animation:flash 1.5s ease}
+@keyframes flash{from{background:rgba(176,137,74,.18)}to{background:transparent}}
+/* V1.9.8 滚动接续流：轮次分组 + 新轮逐条登场（fade+rise，stagger 0.9s/条） */
+.round{padding:2px 0 4px}
+.round+.round{border-top:1px solid rgba(138,106,51,.14);margin-top:6px;padding-top:8px}
+@keyframes segin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* 时间与正文同一行：时间是第 1 列固定标签，正文在第 2 列自动换行 */
+.seg .tm{grid-column:1;white-space:nowrap;font-size:11px;color:var(--muted);
+  font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.seg .tx{grid-column:2;min-width:0;font-size:16px;line-height:1.92;color:var(--ink);
+  letter-spacing:.02em}
+.seg .em{color:var(--gold-deep);font-weight:600}
+/* 标的标签行：正文末尾的「名称 + 涨跌幅」（涨红跌绿；取不到名称时回退 ticker）。
+   与正文同列（grid-column:2）→ 左对齐正文，不再对齐时间。 */
+.seg .refs{grid-column:2;display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.seg .ref{display:inline-flex;align-items:center;gap:6px;font-size:11px;line-height:1.75;
+  border:1px solid var(--hair);border-radius:2px;padding:1px 8px;
+  background:rgba(176,137,74,.06);letter-spacing:.03em}
+.seg .ref .rn{color:var(--ink);font-weight:600}
+.seg .ref .rp{font-weight:600;font-variant-numeric:tabular-nums}
+.seg .ref.up .rp{color:var(--up)}
+.seg .ref.down .rp{color:var(--down)}
+/* 资讯标签（V1.8.6）：可点击打开原文。用 <a> 但外观与普通标签一致，
+   hover 时描边转金 + 轻微上浮，明确"这个能点"。 */
+.seg a.ref.news{text-decoration:none;color:var(--gold-deep);border-color:rgba(176,137,74,.42);
+  background:rgba(176,137,74,.1);transition:.16s}
+.seg a.ref.news:hover{background:rgba(176,137,74,.2);transform:translateY(-1px)}
+.seg a.ref.news .rn{color:var(--gold-deep);font-weight:600}
+.seg a.ref.news .rk{font-size:9.5px;letter-spacing:.06em;opacity:.75}
+.stream-foot{display:flex;align-items:center;gap:12px;padding:9px 20px;border-top:1px solid var(--hair);flex-wrap:wrap}
+.stream-foot .pr{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ===== 本场状况 ===== */
+.game-rhythm{display:flex;align-items:center;gap:12px;padding:12px 20px;
+  border-bottom:1px solid var(--hair)}
+.game-rhythm .big{font-family:var(--serif);font-size:17px;font-weight:600;
+  letter-spacing:.05em;color:var(--gold-deep);white-space:nowrap}
+.game-rhythm .rt{font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.game-rhythm .bar{flex:1;min-width:60px;height:5px;background:var(--hair);border-radius:3px;overflow:hidden;display:flex}
+.game-rhythm .bar i{display:block;height:100%}
+.game-rhythm .bar i.u{background:var(--up)} .game-rhythm .bar i.d{background:var(--down)}
+.mvp{padding:12px 20px;border-bottom:1px solid var(--hair);display:flex;gap:12px;align-items:center}
+.mvp-badge{width:46px;height:46px;flex:0 0 auto;border-radius:2px;background:var(--gold);
+  color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.mvp-badge .k{font-size:8.5px;letter-spacing:.1em;line-height:1.3}
+.mvp-badge .n{font-size:16px;line-height:1.25;font-family:var(--serif);font-weight:600}
+.mvp-info{flex:1;min-width:0}
+.mvp-info .nm{font-family:var(--serif);font-size:15px;font-weight:600;letter-spacing:.03em}
+.mvp-info .code{font-size:10.5px;color:var(--muted);margin-left:6px;font-family:var(--sans);font-weight:400}
+.mvp-info .kv{font-size:11.5px;color:var(--ink-soft);margin-top:3px;line-height:1.7}
+.mvp-info .kv b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.mvp-pct{font-family:var(--serif);font-size:19px;font-weight:600;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.pick{display:flex;gap:10px;padding:9px 20px;border-bottom:1px solid rgba(138,106,51,.10);font-size:12.5px}
+.pick:last-child{border-bottom:none}
+.pick .k{font-size:10.5px;color:var(--gold-deep);letter-spacing:.08em;flex:0 0 46px;padding-top:2px}
+.pick .v{flex:1;color:var(--ink-soft);line-height:1.6}
+.pick .v b{color:var(--ink);font-weight:600}
+.pick .v .up{color:var(--up)} .pick .v .down{color:var(--down)}
+
+/* ===== 本场统计（状况剖面 · A/H/美股兼容） ===== */
+/* ⚠️ V1.9.29：原写 `.stats-band` —— 而 HTML 用的是 `.stats-panel`（第 390 行），
+   选择器对不上 = 死规则，本场统计与下方全球资讯两个 panel 零间距、边框贴成一条线。
+   更名后生效（师傅 2026-10-09 反馈「两个模块中间没有空隙」）。 */
+.stats-panel{margin-bottom:18px}
+/* ⚠️ V1.9.36：去掉 height:100%（有它 → 与 grid 行高循环依赖，浏览器退回内容撑高，
+   右栏就被"全部资讯"顶成超高）；改为 align-self:stretch（grid 默认）填满行高。 */
+.col-right{display:flex;flex-direction:column;min-height:0;align-self:stretch}
+/* 资讯台：填满右栏剩余空间（保证边框到底、与左栏底缘平齐），
+   但内部列表有 max-height（约 5 条，JS 计算）→ 不会被拉长。 */
+.news-panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.stats-grid{display:block}   /* V1.9.21：单卡，不再铺多市场 */
+.stats-tabs{display:inline-flex;gap:5px;align-items:center}
+.ms-tab{font-family:var(--sans);font-size:11px;letter-spacing:.04em;color:var(--muted);
+  background:transparent;border:1px solid var(--hair);border-radius:3px;padding:2px 9px;
+  cursor:pointer;transition:.15s;white-space:nowrap}
+.ms-tab:hover{color:var(--ink);border-color:var(--gold)}
+.ms-tab.on{color:var(--ivory);background:var(--gold);border-color:var(--gold);font-weight:600}
+.ms-card{background:var(--ivory-2);padding:12px 15px 13px}
+/* V1.9.24：删卡内表头（市场名已有 panel 头部 tab，数据时间移到走势图下方说明文字），
+   瓦片直接顶到卡顶对齐 panel 头。 */
+/* 2×2 维度瓦片：数字直读 + 红涨绿跌 + 广度组成条（替代原 4 条竖排滑动条） */
+.ms-tiles{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hair);
+  border:.5px solid var(--hair);border-radius:8px;overflow:hidden;margin-top:2px}
+.ms-tile{background:var(--ivory-2);padding:9px 11px}
+.ms-k{font-size:11px;color:var(--ink-soft);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.ms-tag{font-size:9px;letter-spacing:.05em;padding:1px 6px;border-radius:7px;white-space:nowrap;margin-left:6px}
+.ms-tag.real{background:rgba(30,123,79,.12);color:var(--down)}
+.ms-tag.proxy{background:rgba(176,137,74,.14);color:var(--gold-deep)}
+.ms-tag.na{background:var(--slot);color:var(--na)}
+.ms-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.ms-dot.bull{background:var(--up)} .ms-dot.bear{background:var(--down)} .ms-dot.flat{background:var(--na)}
+.ms-v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;margin:4px 0 1px;line-height:1;letter-spacing:.01em}
+.ms-v .arw{font-size:12px;font-weight:700;margin-left:2px}
+.c-up{color:var(--up)} .c-down{color:var(--down)} .c-na{color:var(--na);font-size:15px}
+.ms-v2{font-size:13px;font-weight:500;margin:5px 0 1px;font-variant-numeric:tabular-nums}
+.ms-v2 b{font-size:16px}
+.ms-sub{font-size:10.5px;color:var(--ink-soft);line-height:1.5;margin-top:2px;word-break:break-word;min-height:3em}
+.ms-breadth{height:8px;border-radius:4px;overflow:hidden;display:flex;margin:6px 0 3px;background:var(--slot)}
+.ms-breadth .u{background:var(--up)} .ms-breadth .d{background:var(--down)}
+.ms-breadth .n{background:var(--slot);width:100%}
+.ms-kl-wrap{margin-top:10px;padding-top:9px;border-top:.5px solid var(--hair)}
+.kl-lab{font-size:11px;color:var(--muted);margin-bottom:3px}
+.ms-kl{width:100%;height:70px;display:block;margin-top:2px}
+/* V1.9.34：统计台「资产象限」瓦片（RRG 跨资产轮动；点击打开 RRG 页，两产品联动） */
+.rrg-tile{display:block;text-decoration:none;color:inherit;cursor:pointer;transition:background .15s}
+.rrg-tile:hover{background:var(--ivory)}
+.rrg-tags{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0 2px}
+.rrg-q{font-size:10px;padding:2px 7px;border-radius:8px;white-space:nowrap;border:1px solid transparent}
+.rrg-q.q-strong{background:rgba(176,137,74,.16);color:var(--gold-deep);border-color:rgba(176,137,74,.4)}
+.rrg-q.q-recover{background:rgba(30,123,79,.12);color:var(--down);border-color:rgba(30,123,79,.35)}
+.rrg-q.q-weak{background:rgba(120,120,120,.12);color:var(--ink-soft);border-color:rgba(120,120,120,.3)}
+.rrg-q.q-hot{background:rgba(180,60,60,.14);color:#b43b3b;border-color:rgba(180,60,60,.4)}
+.ms-link{font-size:9px;color:var(--gold-deep);margin-left:auto;border:1px solid var(--hair);border-radius:7px;padding:0 5px}
+.ms-kl-prev{stroke:var(--gold-deep);stroke-width:1;stroke-dasharray:3 3;opacity:.55}
+.ms-kl-cap{font-size:10.5px;color:var(--ink-soft);margin-top:5px;text-align:right;font-variant-numeric:tabular-nums}
+.ms-empty{padding:18px;color:var(--muted);font-size:12px}
+
+/* ===== 资讯（hover 可点，无「打开原文」提示） ===== */
+/* ⚠️ V1.9.36：列表设 max-height ≈ 5 条（--nw-row 由 JS 量首条实际高度后写入，
+   默认 86px 兜底）—— 这样资讯台"能展示个 5 条的高度就差不多了"，
+   同时 panel 因 flex:1 依然把边框铺到右栏底缘，与左侧解说台下缘对齐。 */
+.news-list{flex:1 1 auto;min-height:0;overflow-y:auto;max-height:calc(5 * var(--nw-row,86px))}
+.news-list::-webkit-scrollbar{width:5px}
+.news-list::-webkit-scrollbar-thumb{background:var(--hair);border-radius:3px}
+.nw{display:block;padding:10px 20px;border-bottom:1px solid rgba(138,106,51,.10);
+  text-decoration:none;transition:.15s;cursor:pointer}
+.nw:last-child{border-bottom:none}
+.nw:hover{background:rgba(176,137,74,.07)}
+.nw-top{display:flex;align-items:baseline;gap:8px;margin-bottom:3px;flex-wrap:wrap}
+.nw-src{font-size:9.5px;letter-spacing:.1em;color:var(--gold-deep);text-transform:uppercase;font-weight:600}
+.nw-chan{font-size:9.5px;color:var(--muted);letter-spacing:.06em}
+.nw-time{font-size:10px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.nw-tx{font-size:12.5px;color:var(--ink-soft);line-height:1.65;display:block}
+.nw:hover .nw-tx{color:var(--ink)}
+.foot{margin-top:24px;font-size:11.5px;color:var(--muted);text-align:center;letter-spacing:.04em;line-height:1.9}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">卧龙 · <b>WOLONG</b></div>
+    <div style="display:flex;align-items:center">
+      <button id="notiBtn" class="noti-btn">🔔 开启桌面通知</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="ticker">
+      <div class="ticker-hd">Global Markets · 全球指数</div>
+      <div class="ticker-track" id="tkTrack"></div>
+    </div>
+
+    <!-- ===== 导播台（浅色，只有真实数据） ===== -->
+    <div class="dock" id="dock">
+      <div class="dock-in">
+        <div class="dock-left">
+          <span class="dock-onair">ON AIR</span>
+          <div class="dock-sess" id="dockMain">
+            <span class="dock-live"></span>
+            <span class="v" id="dockSess">—</span>
+          </div>
+          <div class="dock-pairs">
+            <div class="dock-pair">
+              <div class="k">北京时间</div>
+              <div class="v" id="dockClock">—</div>
+            </div>
+            <div class="dock-pair">
+              <div class="k">在线观众</div>
+              <div class="v" id="dockViewers">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="dock-right">
+          <div class="dock-cell" style="width:100%">
+            <div class="k dock-krow">
+              <span>交易时段 · 北京时间</span>
+              <span class="k-cad" id="dockRefresh">—</span>
+            </div>
+            <div class="tl" id="dockTl"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <!-- 左：解说员 + 直播流（当下这一轮；循环每轮覆盖，直播即当下）
+           ⚠️ V1.9.36：stage-left = flex 列（stream 用 flex:1 吸收高度，见 .stream 注释） -->
+      <div class="panel stage-left">
+        <div class="panel-hd">
+          <span class="t">AI 解说席</span>
+          <span class="m" id="bcMkt">—</span>
+        </div>
+        <div class="anchors" id="anchors"></div>
+        <div class="stream" id="bcBody"></div>
+        <div class="stream-foot">
+          <span class="pr" id="bcProg">0 / 0</span>
+          <div style="flex:1;min-width:100px;height:3px;background:var(--hair);border-radius:2px;position:relative;cursor:pointer" id="bcBar">
+            <i style="position:absolute;left:0;top:0;height:100%;background:var(--gold);border-radius:2px;width:0"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：本场统计（单卡 · AH 可切换 / 美股夜间自动顶上） + 全球资讯 -->
+      <div class="col-right">
+        <div class="panel stats-panel">
+          <div class="panel-hd">
+            <span class="t">本场统计</span>
+            <span class="m stats-tabs" id="statsTabs"></span>
+          </div>
+          <div class="stats-grid" id="statsGrid"></div>
+        </div>
+        <div class="panel news-panel">
+          <div class="panel-hd">
+            <span class="t">全球资讯</span><span class="m" id="newsSrc">—</span>
+            <div class="sp"><span style="font-size:11px;color:var(--muted)" id="newsTime"></span></div>
+          </div>
+          <div class="news-list" id="newsBox"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">卧龙台 · 股市直播 · 数据截至 __DATE__ · 行情源 __SRC__<br>
+      解说员为虚拟人物（气质风格标签），不模仿任何具体真人。行情与资讯来自公开数据源，可能有延时。仅供研究，不构成任何投资建议。</div>
+  </div>
+
+<script>
+var DATA = __DATA__;
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ===== 走马灯 ===== */
+(function(){
+  var rows = DATA.global_ticker||[];
+  if(!rows.length){ document.getElementById('tkTrack').innerHTML='<span class="tk"><span class="n">全球指数数据暂不可用</span></span>'; return; }
+  var html = rows.map(function(x){
+    var c = x.pct>0?'up':x.pct<0?'down':'';
+    var ar = x.pct>0?'▲':x.pct<0?'▼':'—';
+    var p = (x.price!=null? Number(x.price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',') : '—');
+    return '<span class="tk"><span class="n">'+esc(x.name)+'</span><span class="p">'+p+'</span>'+
+      '<span style="color:'+(x.pct>0?'#C0392B':x.pct<0?'#1E7B4F':'#9a948a')+'">'+ar+'</span>'+
+      '<span class="c '+c+'">'+(x.pct>0?'+':'')+x.pct.toFixed(2)+'%</span></span>';
+  }).join('');
+  document.getElementById('tkTrack').innerHTML = html + html;
+})();
+
+/* ===== 导播台 ===== */
+/* ⚠️ V1.9.16：会话相关渲染抽成全局 __applySess，供 __session__.json 轮询重调。
+   徽标 / 24h 时段条回答的是「市场**现在**开不开」——时钟问题，不能等 300s 一轮的
+   build：实测 13:02 下午已开盘，页面仍写「全场休息」（那是 12:53 午休窗口建的页，
+   当时 A股 11:30-13:00 与港股 12:00-13:00 确实双双闭市）。 */
+var __sessSig = null;
+window.__applySess = function(S){
+  window.__sess = S;          // 实时时段快照，供本场统计自动选市场（夜间美股自动顶上）
+  S = S || {};
+  var CN={cn:'A股',hk:'港股',us:'美股'};
+  // 状态签名：只有真变化才重绘（否则每 4s 重建 24h 条会反复打断时间指针）
+  var __sig = ['cn','hk','us'].map(function(k){
+        var st=(S.all||{})[k]||{};
+        return k+':'+(st.state||'')+':'+(st.status||'')+':'+(st.holiday?'H':'')+':'+(st.asof||'');
+      }).join('|')+'#'+(S.active||'')+'#'+(S.active_status||'')+'#'+(S.active_names||[]).join(',')+'#'+(S.idle_name||'');
+  if(__sig === __sessSig) return;
+  __sessSig = __sig;
+  // ON AIR 呼吸灯：任一市场「交易中(open)」才亮灯；盘前/盘后/休市一律熄灯
+  var anyOpen = ['cn','hk','us'].some(function(k){ var st=(S.all||{})[k]||{}; return st.state==='open'; });
+  // ⚠️ V1.9.16：必须是 toggle —— 原来是「只在 !anyOpen 时 add」，一旦开盘就再也
+  //   摘不掉 dock-off，灯会永久熄灭（徽标文字却已改成「交易中」，自相矛盾）。
+  var __dock = document.getElementById('dock');
+  if(__dock) __dock.classList.toggle('dock-off', !anyOpen);
+  // 状态文字：显示当前有节目的市场 + 状态（盘前/盘后照实说），无节目才「全场休息」；
+  // 亮灯与否只由 anyOpen 决定（灯灭 ≠ 没节目，见上）
+  // ⚠️ V1.9.14：AH 并行时段并列展示（A股 · 港股），不再只写单一 active（师傅指出 H股漏了）。
+  var sessTxt = (S.active_names && S.active_names.length > 1)
+      ? S.active_names.join(' · ') : S.active_name;
+  /* ⚠️ V1.9.27：active 为空时不再一律写「全场休息」——逐分钟扫全天（docs/时段状态总表.md）
+     后只剩两个真空档，语气完全不同：12:00-13:00 是「午间休市 · 13:00 续盘」，
+     冬令时 16:00-17:00 是「场次交接 · 美股盘前 17:00」。空档名由 markets.idle_name 给出，
+     缺字段（旧快照）时回退「全场休息」，不影响既有渲染。 */
+  document.getElementById('dockSess').innerHTML = S.active ?
+      (esc(sessTxt)+'<small>'+esc(S.active_status||'')+'</small>') :
+      (esc(S.idle_name||'全场休息')+(S.idle_note?'<small>'+esc(S.idle_note)+'</small>':''));
+
+  /* ---- 刷新节奏（两档：活跃档/平稳档，见 config.refresh）
+     挂在本面板标题行右侧（左栏恢复原版两项，不再撑爆布局） ---- */
+  (function(){
+    var rt = DATA.refresh_tier||'', ri = DATA.refresh_interval||0;
+    var rtTxt = rt==='active'?'活跃档':rt==='calm'?'平稳档':rt==='manual'?'自定义':'自动';
+    var real = DATA.real_refresh_secs||0;
+    document.getElementById('dockRefresh').textContent =
+      '刷新节奏 · ' + rtTxt + (real? ' 约'+real+'s/轮(实测)':(ri? ' '+ri+'s(配置)':''));
+  })();
+
+  /* ---- 24h 时段条（Forex session chart 式：三轨重叠一眼可见） ----
+     休市市场（时钟说该开、行情源报价却停在上一交易日）标 休市 并压暗，
+     悬停显示行情源最后报价时刻 —— 宁可显式说明，也不假装在交易。 */
+  var KIND = { open:'open', pre:'pre', post:'post', closed:'closed' };
+  var labs=[], tracks=[], sts=[];
+  ['cn','hk','us'].forEach(function(k){
+    var st=(S.all||{})[k]||{};
+    var segs = st.segs||[];
+    var hol = !!st.holiday;
+    var htip = hol ? ('今日休市 · 行情源最后报价 '+(st.asof||'—')) : '';
+    var bars = segs.map(function(sg){
+      // sg = [startMin, endMin, kind]，可能超过 1440（美股跨天）→ 归一化
+      var a = sg[0], b = sg[1];
+      var parts = [];
+      if(b > 1440){ parts.push([a, 1440]); parts.push([0, b-1440]); }
+      else if(a >= 1440){ parts.push([a-1440, b-1440]); }
+      else parts.push([a, b]);
+      return parts.map(function(p){
+        var l = (p[0]/1440*100), w = ((p[1]-p[0])/1440*100);
+        if(w<=0) w = 100/1440;
+        return '<span class="tl-seg '+(KIND[sg[2]]||'')+'" style="left:'+l.toFixed(3)+'%;width:'+w.toFixed(3)+'%"></span>';
+      }).join('');
+    }).join('');
+    var ticks = [0,6,12,18].map(function(h){
+      return '<span class="tl-tick" style="left:'+(h/24*100).toFixed(3)+'%"></span>';
+    }).join('');
+    labs.push('<span class="tl-lab'+(st.open?' on':'')+'"'+(hol?' style="opacity:.45"':'')+
+              (htip?' title="'+esc(htip)+'"':'')+'>'+CN[k]+'</span>');
+    tracks.push('<span class="tl-track'+(hol?' hol':'')+'">'+ticks+bars+'</span>');
+    sts.push('<span class="tl-st'+(st.open?' on':'')+'">'+esc(st.status||'')+'</span>');
+  });
+  document.getElementById('dockTl').innerHTML =
+    '<div class="tl-body"><div class="tl-labs">'+labs.join('')+'</div>'+
+    '<div class="tl-tracks">'+tracks.join('')+
+      '<span class="tl-now" id="tlNow"></span>'+
+      '<div class="tl-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div></div>'+
+    '<div class="tl-sts">'+sts.join('')+'</div></div>';
+
+  var cur = CN[(DATA.commentary[0]||{}).market]||'';
+  document.getElementById('bcMkt').textContent = cur;
+  // ⚠️ V1.8.4 师傅要求去掉这个标签：它在港股/美股场次也显示「A股 · 上一场 9月30日」，
+  //   是**误导** —— 本场根本不是 A 股，A股 那一栏数据与当前解说无关。
+  //   现在只在「A股 确实开市且快照是今天」时才显示，其余情况一律留空（不摆旧数据）。
+  var gd = String(DATA.date||'');
+  var gdt = (gd.length===8) ? (parseInt(gd.slice(4,6),10)+'月'+parseInt(gd.slice(6,8),10)+'日') : gd;
+  var fresh = (DATA.cn_fresh === true);
+  var cnOpen = !!(S.all && S.all.cn && S.all.cn.open);
+  var gameMkt = document.getElementById('gameMkt');
+  if(gameMkt) gameMkt.textContent = (fresh && cnOpen) ? ('A股 · '+gdt) : '';
+  if(window.__tickNow) window.__tickNow();      // 重画 24h 条后时间指针立即归位
+};
+
+/* 首屏：先用 build 时烙入的状态渲染；随后每 4s 由服务端**按当前钟点现算**的结果覆盖。
+   ⚠️ 必须容错：file:// 预览或服务不可达时 fetch 失败 → 静默保持原状态，
+      不能把徽标弄没（与 __state__ 徽标同一纪律）。 */
+window.__applySess(DATA.session);
+(function(){
+  function poll(){
+    fetch('__session__.json',{cache:'no-store'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d && d.all){ window.__sess=d; window.__applySess(d); if(window.__statsAuto) window.__renderStats(); } })
+      .catch(function(){});
+  }
+  poll();
+  setInterval(poll,4000);
+})();
+
+/* ---- 在线观众：优先读真实接口（CF Pages 部署时可用），无数据则显示 — ----
+   ⚠️ 本地 file:// 打开时没有后端，永远拿不到真实 UV —— 此时显示「—」而不是编造数字。
+   部署到 CF 后可接：/api/views（Worker 记 KV）或 Cloudflare Web Analytics 聚合值。*/
+(function(){
+  var el = document.getElementById('dockViewers');
+  var SRC = window.VIEWS_API || null;          // build 时注入；本地为空
+  function fmt(n){ return n>=10000? (n/10000).toFixed(1)+'万' : (''+n); }
+  function show(v){ el.innerHTML = fmt(v)+'<span class="u">人</span>'; }
+  if(!SRC){ el.textContent = '—'; return; }
+  fetch(SRC, {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+    if(j && typeof j.online === 'number') show(j.online); else el.textContent = '—';
+  }).catch(function(){ el.textContent = '—'; });
+})();
+
+/* ---- 当前时刻指针（单条金线贯穿三轨，每秒走一格） ---- */
+(function(){
+  function move(){
+    var d=new Date(), m=d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
+    var p=(m/1440*100).toFixed(3)+'%';
+    var el=document.getElementById('tlNow'); if(el) el.style.left=p;
+  }
+  move(); setInterval(move, 1000);
+})();
+
+/* ===== 北京时间（每秒走字） ===== */
+(function(){
+  var el = document.getElementById('dockClock');
+  var WD = ['日','一','二','三','四','五','六'];
+  function pad(n){ return n<10? '0'+n : ''+n; }
+  function tick(){
+    var d = new Date();                     // 浏览器本地时间；本机时区为北京时区(UTC+8)
+    el.innerHTML = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+
+      '<small>周'+WD[d.getDay()]+'</small>';   // innerHTML 才能渲染 <small>
+  }
+  tick(); setInterval(tick, 1000);
+})();
+
+/* ===== 本场统计（状况剖面 · A/H/美股 兼容） =====
+   数据来自 build 注入的 DATA.market_stats（Python 现算，零客户端解析）。
+   单卡：强度/广度/情绪/外围 四维度条 + 日内K线；AH 可切换，
+   按当前开市市场自动定位（AH同开→A股 / 单港股→港股 / 单美股→美股 / 全休→最近收场）。
+   维度条语义：中心=中性，右侧=多方占优(金)，左侧=空方占优(灰)；长度=偏离幅度。 */
+(function(){
+  var ORDER = ['cn','hk','us'];
+  var CN = {cn:'A股', hk:'港股', us:'美股'};
+  var GOLD='var(--gold)', GRAY='var(--muted)';
+  function fmtPct(v){ return (typeof v==='number') ? (v>0?'+':'')+v.toFixed(2)+'%' : '—'; }
+  function arrow(v){ return (typeof v==='number') ? (v>=0?'▲':'▼') : ''; }
+  function dirClass(v){ return (typeof v==='number') ? (v>=0?'c-up':'c-down') : 'c-na'; }
+  // 强度/外围：数值 + 方向箭头 + 红涨绿跌
+  function valTile(v){
+    if(typeof v!=='number') return '<span class="ms-v c-na">—</span>';
+    return '<span class="ms-v '+dirClass(v)+'">'+fmtPct(v)+'<span class="arw">'+arrow(v)+'</span></span>';
+  }
+  // 方向小圆点：bull=红(偏多) / bear=绿(偏空) / null=灰
+  function dotHtml(bull){
+    if(bull===null||bull===undefined) return '';
+    return '<span class="ms-dot '+(bull?'bull':'bear')+'"></span>';
+  }
+  // 广度：红(涨)/绿(跌) 组成条 + 多空占比（无数据→灰条 + 待接入）
+  function breadthHtml(bd){
+    var has=(typeof bd.up==='number' && typeof bd.down==='number');
+    if(!has) return '<div class="ms-breadth"><i class="n"></i></div><div class="ms-sub">'+(bd.sub||'待接入')+'</div>';
+    var tot=bd.up+bd.down, upPct=tot>0?bd.up/tot*100:0;
+    return '<div class="ms-breadth"><i class="u" style="width:'+upPct.toFixed(1)+'%"></i>'+
+           '<i class="d" style="width:'+(100-upPct).toFixed(1)+'%"></i></div>'+
+           '<div class="ms-sub">涨 '+bd.up+' / 跌 '+bd.down+' · 多方占 '+Math.round(upPct)+'%'+
+       (bd.note?(' · '+esc(bd.note)):'')+'</div>';
+  }
+  function tile(labelHtml, inner, tagHtml){
+    return '<div class="ms-tile"><div class="ms-k">'+labelHtml+(tagHtml||'')+'</div>'+inner+'</div>';
+  }
+  // 日内 K 线（5 分钟）：每根 [time,open,high,low,close]；涨=金、跌=灰；含昨收基准虚线（v1.9.23 高度 92→70）
+  // asof：快照报价时间（仅 HH:MM:SS），仅当 K 线自带 dt 缺失时兜底显示（v1.9.24）
+  function klHtml(kl, asof){
+    if(!kl || !kl.candles || !kl.candles.length) return '<span class="ms-na">N/A</span>';
+    var cd=kl.candles, n=cd.length;
+    var mn=Infinity, mx=-Infinity;
+    cd.forEach(function(c){ if(c[2]<mn)mn=c[2]; if(c[3]>mx)mx=c[3]; });
+    if(mx===mn){ mx=mn+1; mn=mn-1; }
+    var pad=(mx-mn)*0.06; mn-=pad; mx+=pad;
+    var W=100, H=70, top=6, ph=52, bw=Math.max(0.5, W/n*0.62);
+    function Y(v){ return top + (mx-v)/(mx-mn)*ph; }
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" class="ms-kl" preserveAspectRatio="none">';
+    var prec=kl.prec;
+    if(typeof prec==='number'){
+      var yp=Y(prec);
+      svg+='<line x1="0" y1="'+yp.toFixed(1)+'" x2="'+W+'" y2="'+yp.toFixed(1)+'" class="ms-kl-prev"/>';
+    }
+    cd.forEach(function(c,i){
+      var x=(i+0.5)/n*W, o=c[1], h=c[2], l=c[3], cl=c[4], bull=cl>=o, col=bull?GOLD:GRAY;
+      var yH=Y(h), yL=Y(l), yO=Y(o), yC=Y(cl), yTop=Math.min(yO,yC), bh=Math.max(0.6,Math.abs(yC-yO));
+      svg+='<line x1="'+x.toFixed(2)+'" y1="'+yH.toFixed(2)+'" x2="'+x.toFixed(2)+'" y2="'+yL.toFixed(2)+'" stroke="'+col+'" vector-effect="non-scaling-stroke" stroke-width="1"/>';
+      svg+='<rect x="'+(x-bw/2).toFixed(2)+'" y="'+yTop.toFixed(2)+'" width="'+bw.toFixed(2)+'" height="'+bh.toFixed(2)+'" fill="'+col+'"/>';
+    });
+    svg+='</svg>';
+    // V1.9.24：说明文字改为「数据日期时间」。原「昨收 / 涨跌幅」与走马灯重复，删除；
+    //   时间取 K 线自带 dt（分时接口交易日 + 最后一根分钟柱，与图同源），缺失才退回快照 asof。
+    var dt = kl.dt || (asof ? asof : null);
+    return svg+'<div class="ms-kl-cap">数据 '+esc(dt || '—')+'</div>';
+  }
+  // 单卡：2×2 维度瓦片 + 日内K线（替代原 4 条竖排滑动条）
+  function cardHtml(m){
+    if(!m) return '';
+    var bd=m.breadth||{}, se=m.sentiment||{}, ex=m.external||{}, st=m.strength||{};
+    // V1.9.24：删卡内「市场名 + 数据时间」表头 —— 市场名走 panel 头部 tab（已有高亮态），
+    //   数据日期时间挪到走势图下方说明文字（原处「昨收 / 涨跌」走马灯已有，重复信息）
+    var h = '<div class="ms-card">';
+    h += '<div class="ms-tiles">';
+    // 强度
+    h += tile('强度 '+dotHtml(st.bar?st.bar.bull:null), valTile(st.v), null);
+    // 广度
+    var bdTag=null;
+    if(bd.proxy && typeof bd.up!=='number') bdTag={type:'na',text:'待接入'};
+    else if(bd.proxy) bdTag={type:'proxy',text:'近似'};
+    else if(typeof bd.up==='number') bdTag={type:'real',text:'真实'};
+    var bdTagHtml = bdTag?('<span class="ms-tag '+bdTag.type+'">'+bdTag.text+'</span>'):null;
+    h += tile('广度', breadthHtml(bd), bdTagHtml);
+    // 情绪
+    var seInner, seTag=null, seDot=null;
+    if(typeof se.vix==='number'){
+      var vp=se.pctile, sbull=(typeof vp==='number')?vp<0.5:null;
+      seDot=dotHtml(sbull);
+      seInner='<span class="ms-v2">VIX <b>'+Number(se.vix).toFixed(2)+'</b></span><div class="ms-sub">'+esc(se.sub||'')+'</div>';
+    } else if(se.proxy){
+      seInner='<span class="ms-v c-na">—</span><div class="ms-sub">'+(se.sub||'港股无涨跌停数据')+'</div>';
+      seTag='<span class="ms-tag na">N/A</span>';
+    } else {
+      var lu=(typeof bd.lu==='number')?bd.lu:'—', ld=(typeof bd.ld==='number')?bd.ld:'—';
+      seDot=dotHtml(se.bar?se.bar.bull:null);
+      var q=(typeof bd.lu==='number'&&typeof bd.ld==='number')?(bd.lu>bd.ld*1.5?'涨停潮 · 偏热':bd.ld>bd.lu*1.5?'跌停潮 · 偏冷':'多空均衡'):'';
+      seInner='<span class="ms-v2">涨停 <b class="c-up">'+lu+'</b> / 跌停 <b class="c-down">'+ld+'</b></span>'+(q?'<div class="ms-sub">'+q+'</div>':'');
+    }
+    h += tile('情绪 '+(seDot||''), seInner, seTag);
+    // 外围 → 资产象限状态（RRG 跨资产轮动；点击打开 RRG 页，两产品联动）
+    if(m.rrg && m.rrg.available){
+      var rq=m.rrg, qmap={'强势':'strong','回升':'recover','弱势':'weak','过热':'hot'};
+      var rtags=rq.assets.map(function(a){
+        return '<span class="rrg-q q-'+((qmap[a.quadrant])||'weak')+'">'+esc(a.asset)+'·'+esc(a.quadrant)+'</span>';
+      }).join('');
+      h += '<a class="ms-tile rrg-tile" href="'+esc(rq.url)+'" target="_blank" rel="noopener"'
+         + ' title="数据截止 '+esc(rq.data_date||'—')+' · 点击打开 RRG 轮动看板">'
+         + '<div class="ms-k">资产象限<span class="ms-link">↗ RRG</span></div>'
+         + '<div class="rrg-tags">'+rtags+'</div>'
+         + '<div class="ms-sub">'+(rq.assets.length?('联动 '+rq.assets.length+' 类资产'):'')+' · 截止 '+esc(rq.data_date||'—')+'</div>'
+         + '</a>';
+    } else {
+      h += tile('外围 '+dotHtml(ex.bar?ex.bar.bull:null), valTile(ex.v), null);
+    }
+    h += '</div>'; // .ms-tiles
+    // K线
+    h += '<div class="ms-kl-wrap"><div class="kl-lab">日内走势（5 分钟 K 线）</div>'+klHtml(m.kl, m.asof)+'</div>';
+    h += '</div>'; // .ms-card
+    return h;
+  }
+  // ---- 单卡 + 市场切换（V1.9.21）----
+  //   默认自动选：美股在交易时段(open/pre/post)→美股；否则 A股；再否则首个有数据的市场。
+  //   用户点 tab 即切手动（__statsAuto=false），但每 4s 实时时段轮询仍会在自动态下
+  //   把「夜间美股开盘」自动顶上来；手动选过则尊重用户选择。
+  window.__statsAuto = true;
+  function liveSess(){ return window.__sess || DATA.session || {}; }
+  function autoSel(){
+    var MS = DATA.market_stats || {};
+    var S = (liveSess().all) || {};
+    function isOpen(k){ var st=(S[k]||{}).state; return st==='open'||st==='pre'||st==='post'; }
+    var cnO=isOpen('cn'), hkO=isOpen('hk'), usO=isOpen('us');
+    if(cnO && hkO) return 'cn';          // AH 同开 → A股
+    if(hkO) return 'hk';                 // 单港股 → 港股
+    if(usO) return 'us';                 // 单美股 → 美股
+    if(cnO) return 'cn';
+    // 全休 → 最近收场（asof 最新者）
+    var best=null, bt='';
+    ORDER.forEach(function(k){ if(MS[k]){ var a=MS[k].asof||''; if(a>bt){ bt=a; best=k; } } });
+    return best || (ORDER.filter(function(k){return MS[k];})[0]) || 'cn';
+  }
+  window.__renderStats = function(sel){
+    var MS = DATA.market_stats || {};
+    var avail = ORDER.filter(function(k){ return MS[k]; });
+    var grid = document.getElementById('statsGrid');
+    var tabs = document.getElementById('statsTabs');
+    if(!grid) return;
+    if(!avail.length){ grid.innerHTML='<div class="ms-empty">本场数据暂不可用</div>'; if(tabs) tabs.innerHTML=''; return; }
+    if(sel){ window.__statsAuto = false; } else { sel = autoSel(); }
+    window.__statsSel = sel;
+    if(tabs){
+      tabs.innerHTML = avail.map(function(k){
+        return '<button class="ms-tab'+(k===sel?' on':'')+'" data-k="'+k+'">'+CN[k]+'</button>';
+      }).join('');
+      [].forEach.call(tabs.querySelectorAll('.ms-tab'), function(b){
+        b.addEventListener('click', function(){ window.__renderStats(b.getAttribute('data-k')); });
+      });
+    }
+    MS[sel]._k = sel;
+    grid.innerHTML = cardHtml(MS[sel]);
+  };
+  window.__renderStats();   // 首屏自动选（白天 A股 / 夜间美股）
+})();
+
+/* ===== 全球资讯：hover 可点，无提示文字（数据层已按时间倒序 + 24h 过滤） ===== */
+(function(){
+  var news = DATA.news||[];
+  document.getElementById('newsBox').innerHTML = news.length ? news.map(function(x){
+    return '<a class="nw" href="'+esc(x.link||'#')+'" target="_blank" rel="noopener">'+
+      '<span class="nw-top"><span class="nw-src">'+esc(x.src)+'</span>'+
+      '<span class="nw-chan">'+esc(x.chan||'')+'</span>'+
+      '<span class="nw-time">'+esc(x.time||'')+'</span></span>'+
+      '<span class="nw-tx">'+esc(x.text||'')+'</span></a>';
+  }).join('') : '<div class="nw"><span class="nw-tx">资讯暂不可用</span></div>';
+  /* V1.9.36：资讯台列表高度上限 = 5 条。标题有长有短、条高不固定，所以量**首条实际高度**
+     再写进 CSS 变量 --nw-row（.news-list 的 max-height 用它）。窗口变化时重算。 */
+  function fitNewsRow(){
+    var box = document.getElementById('newsBox');
+    if(!box) return;
+    var first = box.querySelector('.nw');
+    if(!first) return;
+    var h = Math.round(first.getBoundingClientRect().height);
+    if(h > 24) document.documentElement.style.setProperty('--nw-row', h + 'px');
+  }
+  fitNewsRow();
+  window.addEventListener('resize', fitNewsRow);
+  if(news.length){
+    var srcs = {}; news.forEach(function(x){ srcs[x.src]=1; });
+    document.getElementById('newsSrc').textContent = Object.keys(srcs).join(' · ');
+  }
+})();
+
+/* ===== 解说员卡（仅在播的那位带 ON AIR 徽标） ===== */
+(function(){
+  /* 单人横排（V1.8.7）：头像 → 姓名 → ON AIR → 角色·简介，全在一行。
+     师傅：「ON AIR 应该放在姓名后面，介绍不用单起一行，跟着后面就可以，
+           不然右边一大块空白」。 */
+  document.getElementById('anchors').innerHTML = (DATA.commentary||[]).map(function(c,i){
+    return '<div class="anchor'+(i===0?' on':'')+'" data-i="'+i+'">'+
+      '<div class="avatar">'+esc(c.initials||c.short.charAt(0))+'</div>'+
+      '<div class="anchor-nm">'+esc(c.short||c.name)+'</div>'+
+      '<span class="onair">ON AIR</span>'+
+      '<div class="anchor-one">'+(c.role?'<span class="anchor-rl">'+esc(c.role)+'</span>':'')+
+      esc(c.one||c.desc||'')+'</div>'+
+      '</div>';
+  }).join('');
+})();
+
+/* ⚠️ 原来这里有一条「本场解说由 agnes-2.5-flash 现场生成 · 时间戳」的来源条，
+   师傅要求去掉（页面上不留这种"技术自证"提示行）。引擎闸已做在 build_live.py
+   的代码层（local-synth 不上页），页面不再需要向用户解释来源。 */
+
+/* ===== 解说流 · 滚动接续（V1.9.8） =====
+   修两个要命问题：
+   ① 「播完就没了」：旧版是 60s/条的慢速播放器，一轮 9~10 条要播 9~10 分钟，
+      但循环每 ~300s 就重建页面 → 播放器每轮都被整页重载打断、永远只看到前几条，
+      播完的段随重载消失。现在改为**渲染整份滚动 feed**（最近 ~1h/16 轮），
+      新一轮在顶部逐条登场、旧轮次常驻不消失 → 真正形成「一轮接一轮」的持续直播。
+   ② 「每轮都从零重启」：旧版每轮重载后播放器从第 0 条重放。现在 feed 累积，
+      旧轮次常驻，只有最新一轮做登场动画，不再从零重启。
+   feed 由 build_live 注入（data/live_data.json 的 feed 字段，append 顺序旧→新），
+   页面反转成「最新在上」。 */
+(function(){
+  var REFTITLE = '行情快照 ' + (DATA.generated_at||'—');
+  function hl(t){ return esc(t).replace(/(\d+(?:\.\d+)?(?:点|个点|亿|万|家|%|连板|板))/g,'<span class="em">$1</span>'); }
+  function clockAt(){
+    var d=new Date();
+    return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+  }
+  /* 标的标签：名称 + 行情快照（与正文数字同源同一份 snapshot，title 里写快照时刻） */
+  function refsHtml(s){
+    var r = s.refs||[];
+    if(!r.length) return '';
+    return '<div class="refs">'+r.map(function(x){
+      if(x.kind === 'news'){
+        var nm = esc(x.name || '外媒快讯');
+        var tt = esc('原文：' + (x.title || x.name || '') + '（点击打开来源页）');
+        return '<a class="ref news" href="'+esc(x.link || '#')+'" target="_blank"'+
+          ' rel="noopener noreferrer" title="'+tt+'">'+nm+
+          '<span class="rk">原文↗</span></a>';
+      }
+      var ok = (typeof x.pct === 'number');
+      var cls = ok ? (x.pct>0?'up':(x.pct<0?'down':'')) : '';
+      var pct = ok ? ((x.pct>0?'+':'')+x.pct.toFixed(2)+'%') : '—';
+      var nm = (x.name && String(x.name).trim()) ? x.name : (x.code || '—');
+      return '<span class="ref '+cls+'" title="'+esc(REFTITLE)+'">'+
+        '<span class="rn">'+esc(nm)+'</span><span class="rp">'+pct+'</span></span>';
+    }).join('')+'</div>';
+  }
+
+  /* feed 优先；无 feed 时用当前 commentary 兜底造一条 */
+  var feed = (DATA.feed && DATA.feed.length) ? DATA.feed.slice() : (DATA.commentary||[]).map(function(c){
+    return {generated_at: DATA.generated_at, market: c.market,
+            market_name: c.market_name, segments: c.segments};
+  });
+  /* feed 是 append 顺序（旧→新），页面要「最新在上」→ 反转 */
+  feed.reverse();
+
+  var body = document.getElementById('bcBody');
+  var html = '';
+  feed.forEach(function(r, ri){
+    var isNewest = (ri===0);
+    var ts = String(r.generated_at||'').slice(11,19) || clockAt();
+    /* V1.9.9：轮次头整行删除（师傅：已有每条时间戳，且最新一直在最前面，
+       「15:06:25 港股 最新」这行是冗余）。轮次之间只留一条细分隔线。 */
+    html += '<div class="round">';
+    (r.segments||[]).forEach(function(s, si){
+      /* 最新一轮逐条登场（segin fade+rise，0.9s/条）；旧轮次直接呈现不动画 */
+      var anim = isNewest
+        ? ' style="animation:segin .5s ease '+(si*0.9).toFixed(2)+'s both"'
+        : '';
+      html += '<div class="seg"'+anim+'>'+
+              '<span class="tm">'+esc(ts)+'</span>'+
+              '<div class="tx">'+hl(s.text)+'</div>'+refsHtml(s)+'</div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html || '<div class="seg"><div class="tx">解说暂不可用</div></div>';
+  body.scrollTop = 0;
+
+  var totalSegs = feed.reduce(function(n,r){ return n + ((r.segments||[]).length); }, 0);
+  document.getElementById('bcProg').textContent = feed.length+' 轮 / '+totalSegs+' 条';
+  document.getElementById('bcBar').firstElementChild.style.width = '100%';
+})();
+</script>
+<script>
+/* 直播自动刷新 + 桌面通知 + 新消息标题  (V1.9.19)
+   ----------------------------------------------------------------
+   页面轮询 __heartbeat__.json 的 mtime，仅在 live.html 被新一轮重建后才动作。
+   · 标签页**可见**（正在看）：直接整页刷新，保持原有“伪直播”回放体验。
+   · 标签页**在后台**（document.hidden）：不打断、不刷新，改为
+       - 触发 Chrome 桌面通知（需点「开启桌面通知」授权一次）
+       - 把标题改成「【新消息 ×N】…」，即使不看标签页也能在标签栏看到提示
+     等用户切回该标签页，再整页刷新追上最新内容、标题复位。
+   相对路径，host 无关（127.0.0.1 或 file:// 都能跑；file:// 下 fetch 失败静默）。 */
+(function(){
+  var TITLE_BASE = '卧龙台 · 股市直播';
+  var CN = {cn:'A股', hk:'港股', us:'美股'};
+  var newCount = 0;
+  var last = null;
+
+  /* ---- 桌面通知按钮（首次需用户手势授权，Chrome 才弹权限框） ---- */
+  var btn = document.getElementById('notiBtn');
+  function refreshBtn(){
+    if(!('Notification' in window)){ if(btn){ btn.textContent='浏览器不支持通知'; btn.disabled=true; } return; }
+    var p = Notification.permission;
+    if(p==='granted'){ btn.textContent='通知已开启'; btn.classList.add('on'); btn.disabled=true; }
+    else if(p==='denied'){ btn.textContent='通知被拦截'; btn.disabled=true; }
+    else { btn.textContent='🔔 开启桌面通知'; btn.classList.remove('on'); btn.disabled=false; }
+  }
+  if(btn){
+    btn.addEventListener('click', function(){
+      if(!('Notification' in window)) return;
+      Notification.requestPermission().then(function(){ refreshBtn(); });
+    });
+    refreshBtn();
+  }
+
+  /* ---- 新流进来（后台态）的处理 ---- */
+  function notifyNew(){
+    newCount++;
+    document.title = '【新消息 ×'+newCount+'】' + TITLE_BASE;
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    // 仅新流时拉一次最新数据：取本轮市场 + 首段摘要作通知正文（频率极低）
+    fetch('__data__.json',{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      var mk = (d.commentary && d.commentary[0] && d.commentary[0].market) || '';
+      var mkName = CN[mk] || mk || '市场';
+      var firstText = '';
+      if(d.feed && d.feed.length){
+        var feed = d.feed.slice().reverse();
+        var s0 = (feed[0].segments || [])[0];
+        if(s0) firstText = s0.text || '';
+      }
+      if(!firstText && d.commentary && d.commentary[0] && d.commentary[0].segments){
+        firstText = (d.commentary[0].segments[0] || {}).text || '';
+      }
+      var body = firstText
+        ? (firstText.slice(0,80) + (firstText.length>80 ? '…' : ''))
+        : (mkName + ' 新一轮解说已更新');
+      try { new Notification('卧龙台 · 新解说（'+mkName+'）', {body: body, tag:'wolong-live'}); }
+      catch(e){}
+    }).catch(function(){});
+  }
+
+  /* ---- 切回标签页：有未读则刷新追上、标题复位 ---- */
+  function onReturn(){
+    if(newCount>0){ newCount=0; document.title = TITLE_BASE; location.reload(true); }
+  }
+  window.addEventListener('focus', onReturn);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) onReturn(); });
+
+  /* ---- 心跳轮询 ---- */
+  function poll(){
+    fetch('__heartbeat__.json',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(last===null){ last=d.mtime; }
+        else if(d.mtime!==last){
+          last=d.mtime;
+          if(document.hidden) notifyNew();
+          else location.reload(true);
+        }
+      }).catch(function(){});
+  }
+  poll();
+  setInterval(poll,4000);
+})();
+
+/* V1.9.10 主播徽标：下一轮正在采集/生成 → 「搜索中」，否则「ON AIR」。
+   相位由 run_live.sh 写 data/loop_phase.json、服务端经 /__state__.json 转出。
+   ⚠️ 必须容错：file:// 打开或服务不可达时 fetch 失败 → 保持原样（ON AIR），
+      不能把徽标弄没。 */
+(function(){
+  var badges = document.querySelectorAll('.anchor .onair');
+  if(!badges.length) return;
+  function apply(busy){
+    for(var i=0;i<badges.length;i++){
+      var b=badges[i];
+      var want = busy ? '搜索中' : 'ON AIR';
+      if(b.textContent !== want) b.textContent = want;
+      if(busy) b.classList.add('searching'); else b.classList.remove('searching');
+    }
+  }
+  function poll(){
+    fetch('__state__.json',{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){ apply(d && d.phase === 'busy'); })
+      .catch(function(){});
+  }
+  poll();
+  setInterval(poll,4000);
+})();
+</script>
+</body>
+</html>

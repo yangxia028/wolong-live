@@ -1,0 +1,69 @@
+name: 股市直播 · 刷新+部署 (CF Pages)
+
+# B 方案（GitHub Actions）：每 5 分钟跑一轮本地等价管线 → wrangler 推 CF Pages。
+# 5 分钟粒度正好对齐本地 calm 档（300s）；active(120s) 在 Actions 上不可达（平台最小粒度 5min）。
+on:
+  schedule:
+    - cron: '*/5 * * * *'        # 每 5 分钟
+  workflow_dispatch: {}          # 允许手动触发试跑
+
+permissions:
+  contents: read
+  actions: read     # actions/cache 需要，默认 token 被 permissions 覆盖后必须显式给
+
+# 不取消进行中的轮次：避免重叠运行同时写 data/ 状态导致页面数据错位
+concurrency:
+  group: live-deploy
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 跨轮持久化：restore 取最近一次 live-state-*；save 以 run_id 写新条目
+      - name: Restore state cache (data/)
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: live-state-${{ github.run_id }}
+          restore-keys: |
+            live-state-
+
+      - name: Run pipeline (one round)
+        env:
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          EULERPOOL_API_KEY: ${{ secrets.EULERPOOL_API_KEY }}
+          COLLECT_CN: auto
+          ENGINE: api
+          PRESET: agnes
+        run: bash ci_run_once.sh
+
+      - name: Save state cache
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: live-state-${{ github.run_id }}
+
+      - name: Ensure Pages project exists (idempotent)
+        uses: cloudflare/wrangler-action@v3
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create wolong-live --production-branch=main
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy _site --project-name wolong-live
